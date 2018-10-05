@@ -1,4 +1,4 @@
-#/usr/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -12,6 +12,7 @@ from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
 from telegram.ext import BaseFilter
+from telegram import ParseMode
 
 
 class ScheissFilter(BaseFilter):
@@ -108,7 +109,28 @@ def list(bot, update):
     """
     list all items in einkaufsliste
     """
+    zettel = read_zettel(update.message.chat_id)
 
+    if len(zettel["liste"])==0:
+        bot.send_message(chat_id=update.message.chat_id,
+            text="hab keine einkaufsliste grad.")
+    else:
+        message = "*Die Einkaufsliste*\n"
+        for item in zettel["liste"]:
+            message += item.lower()+'\n'
+        bot.send_message(chat_id=update.message.chat_id, text=message,
+            parse_mode=ParseMode.MARKDOWN)
+
+
+def resetlist(bot, update):
+    """
+    removes all items from zettel["liste"]
+    """
+    zettel = read_zettel(update.message.chat_id)
+    zettel["liste"] = []
+    save_zettel(zettel, update.message.chat_id)
+    bot.send_message(chat_id=update.message.chat_id,
+        text="ok, hab die einkaufsliste gelöscht")
 
 
 # setup logging info
@@ -127,6 +149,10 @@ add_handler = CommandHandler('add', add, pass_args=True)
 dispatcher.add_handler(add_handler)
 remove_handler = CommandHandler('remove', remove, pass_args=True)
 dispatcher.add_handler(remove_handler)
+list_handler = CommandHandler('list', list)
+dispatcher.add_handler(list_handler)
+resetlist_handler = CommandHandler('resetlist', resetlist)
+dispatcher.add_handler(resetlist_handler)
 
 # scheisse handler
 scheisse = ScheissFilter()
