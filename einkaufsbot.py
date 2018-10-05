@@ -4,7 +4,7 @@
 import os
 
 PATH = os.path.dirname(os.path.realpath(__file__))
-TOKEN = "647874132:AAFvPB0zgldLDIUrDgATh8oogvkyKjXiYS4"
+TOKEN = open("token.txt").read().strip()
 
 import logging
 import json
@@ -102,6 +102,13 @@ def remove(bot, update, args):
             text="ok, hab's runter von der liste")
 
     save_zettel(zettel, update.message.chat_id)
+
+
+def list(bot, update):
+    """
+    list all items in einkaufsliste
+    """
+
 
 
 # setup logging info
