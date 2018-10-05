@@ -11,6 +11,7 @@ import json
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
+from telegram.ext import Filters
 from telegram.ext import BaseFilter
 from telegram import ParseMode
 
@@ -81,7 +82,6 @@ def add(bot, update, args):
         message += "hab den rest aufgeschrieben!"
 
     bot.send_message(chat_id=update.message.chat_id, text=message)
-
     save_zettel(zettel, update.message.chat_id)
 
 
@@ -108,7 +108,6 @@ def remove(bot, update, args):
         message += "hab den rest runter von der liste."
 
     bot.send_message(chat_id=update.message.chat_id, text=message)
-
     save_zettel(zettel, update.message.chat_id)
 
 
@@ -140,6 +139,24 @@ def resetlist(bot, update):
         text="ok, hab die einkaufsliste gelöscht")
 
 
+def help(bot, update):
+    message = "*Hallo ich bin der Einkauf-Heini!*\n"\
+                "Das kann ich alles:\n\n"\
+                "/add füge zeugs zur einkaufsliste hinzu. mehrere Sachen"\
+                " mit leerzeichen trennen!\n"\
+                "/remove lösche zeugs von der einkaufsliste, genauso wie bei add\n"\
+                "/list lass dir die gesamte einkaufsliste anzeigen\n"\
+                "/resetlist lösche die ganze einkaufsliste\n"
+    bot.send_message(chat_id=update.message.chat_id, text=message,
+        parse_mode=ParseMode.MARKDOWN)
+
+
+# to be fired on unknown commands
+def unknown(bot, update):
+    message = "Den befehl kenn ich nicht! 😱\nnimm den /help befehl um mehr zu erfahren"
+    bot.send_message(chat_id=update.message.chat_id, text=message)
+
+
 # setup logging info
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
@@ -160,11 +177,16 @@ list_handler = CommandHandler('list', list)
 dispatcher.add_handler(list_handler)
 resetlist_handler = CommandHandler('resetlist', resetlist)
 dispatcher.add_handler(resetlist_handler)
+help_handler = CommandHandler('help', help)
+dispatcher.add_handler(help_handler)
 
 # scheisse handler
 scheisse = ScheissFilter()
 scheisse_handler = MessageHandler(scheisse, answer_shit)
 dispatcher.add_handler(scheisse_handler)
+
+unknown_handler = MessageHandler(Filters.command, unknown)
+dispatcher.add_handler(unknown_handler)
 
 
 if __name__=="__main__":
