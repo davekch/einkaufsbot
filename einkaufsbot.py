@@ -64,20 +64,23 @@ def add(bot, update, args):
     zettel = read_zettel(update.message.chat_id)
 
     # check if items are already in list and add them/write message
-    # added something is false if everything in args is already on list
-    added_smth = False
+    message = ""
     for item in args:
         if item.upper() not in zettel["liste"]:
             zettel["liste"].append(item.upper())
-            added_smth = True
         else:
-            bot.send_message(chat_id=update.message.chat_id,
-                text="{} steht schon auf der einkaufsliste.".format(item))
+            if message=="":
+                message += "{} steht schon auf der einkaufsliste.\n".format(item)
+            else:
+                message += "{} auch.\n".format(item)
 
     # send message if zettel was altered
-    if added_smth:
-        bot.send_message(chat_id=update.message.chat_id,
-            text="ok, hab's auf die liste geschrieben")
+    if message=="":
+        message = "ok, hab's auf die liste geschrieben"
+    else:
+        message += "hab den rest aufgeschrieben!"
+
+    bot.send_message(chat_id=update.message.chat_id, text=message)
 
     save_zettel(zettel, update.message.chat_id)
 
@@ -89,18 +92,22 @@ def remove(bot, update, args):
     zettel = read_zettel(update.message.chat_id)
 
     # remove args from zettel
-    removed_smth = False
+    message = ""
     for item in args:
         try:
             zettel["liste"].remove(item.upper())
-            removed_smth = True
         except ValueError:
-            bot.send_message(chat_id=update.message.chat_id,
-                text="{} steht eh nicht auf dem zettel!".format(item))
+            if message=="":
+                message += "{} steht eh nicht auf dem zettel!\n".format(item)
+            else:
+                message += "{} auch nicht.\n".format(item)
 
-    if removed_smth:
-        bot.send_message(chat_id=update.message.chat_id,
-            text="ok, hab's runter von der liste")
+    if message=="":
+        message = "ok, hab's runter von der liste"
+    else:
+        message += "hab den rest runter von der liste."
+
+    bot.send_message(chat_id=update.message.chat_id, text=message)
 
     save_zettel(zettel, update.message.chat_id)
 
