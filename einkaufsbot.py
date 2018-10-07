@@ -13,9 +13,14 @@ import json
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
+from telegram.ext import ConversationHandler
 from telegram.ext import Filters
 from telegram.ext import BaseFilter
 from telegram import ParseMode
+
+
+# conversation states
+YESNOPROMPT, CONVERSATION_ONGOING = range(2)
 
 
 class ScheissFilter(BaseFilter):
@@ -150,7 +155,43 @@ def resetlist(bot, update):
     zettel["liste"] = []
     save_zettel(zettel, update.message.chat_id)
     bot.send_message(chat_id=update.message.chat_id,
-        text="ok, hab die einkaufsliste gelöscht")
+        text="ok, hab die einkaufsliste gelöscht. willst du gleich angeben wieviel du gezahlt hast (falls du zufällig grad einkaufen warst)?")
+
+    # return conversation status yesno
+    return YESNOPROMPT
+
+
+def yes_no(bot, update):
+    """
+    checks if reply is yes or no or nothing
+    """
+    reply = update.message.text
+    yes = ["yes", "ja", "jo", "jep", "jup", "yip", "ya"]
+    no = ["no", "nein", "ne"]
+
+    # check if yes or no is conatained in reply
+    for y in yes:
+        if y in reply:
+            update.message.reply_text("ich hab 'ja' verstanden")
+            return CONVERSATION_ONGOING
+    for n in no:
+        if n in reply:
+            update.message.reply_text("ok dann nicht :)")
+            return ConversationHandler.END
+
+    # nothing was understood
+    update.message.reply_text("hab jetzt nicht verstanden ob das ein ja oder ein nein war...")
+    return ConversationHandler.END
+
+
+def add_payment(bot, update):
+    update.message.reply_text("ok dann sag mir pls wieviel du geblecht hast")
+    return ConversationHandler.END
+
+
+def cancel(bot, update):
+    update.message.reply_text("ok dieses gespräch scheint vorbei zu sein.")
+    return ConversationHandler.END
 
 
 def help(bot, update):
@@ -199,7 +240,17 @@ def main():
     dispatcher.add_handler(remove_handler)
     list_handler = CommandHandler('list', list)
     dispatcher.add_handler(list_handler)
-    resetlist_handler = CommandHandler('resetlist', resetlist)
+
+    resetlist_handler = ConversationHandler(
+        # command that triggers the conversation
+        entry_points = [CommandHandler('resetlist', resetlist)],
+        # states of the conversation
+        states = {
+            YESNOPROMPT: [MessageHandler(Filters.text, yes_no)],
+            CONVERSATION_ONGOING: [MessageHandler(Filters.text, add_payment)]
+        },
+        fallbacks=[CommandHandler('cancel', cancel)]
+    )
     dispatcher.add_handler(resetlist_handler)
 
     # restart the bot, but only allow me to do this
