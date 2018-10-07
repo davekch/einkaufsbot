@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
+from threading import Thread
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 TOKEN = open("token.txt").read().strip()
@@ -30,7 +32,7 @@ class ScheissFilter(BaseFilter):
 
 
 def start(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="hello me blubu")
+    bot.send_message(chat_id=update.message.chat_id, text="Hallo, ich bin der Einkaufs-Heini. Schick mir den /help befehl um mehr zu lernen.")
 
 
 def answer_shit(bot, update):
@@ -157,38 +159,54 @@ def unknown(bot, update):
     bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
-# setup logging info
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+def main():
+
+    # setup logging info
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
+    # bot itself
+    updater = Updater(token=TOKEN)
+    dispatcher = updater.dispatcher
 
+    def stop_and_restart():
+        updater.stop()
+        os.execl(sys.executable, sys.executable, *sys.argv)
 
-# bot itself
-updater = Updater(token=TOKEN)
-dispatcher = updater.dispatcher
+    def restart(bot, update):
+        update.message.reply_text("Starte Bot neu ...")
+        Thread(target=stop_and_restart).start()
 
-start_handler = CommandHandler('start', start)
-dispatcher.add_handler(start_handler)
+    start_handler = CommandHandler('start', start)
+    dispatcher.add_handler(start_handler)
 
-add_handler = CommandHandler('add', add, pass_args=True)
-dispatcher.add_handler(add_handler)
-remove_handler = CommandHandler('remove', remove, pass_args=True)
-dispatcher.add_handler(remove_handler)
-list_handler = CommandHandler('list', list)
-dispatcher.add_handler(list_handler)
-resetlist_handler = CommandHandler('resetlist', resetlist)
-dispatcher.add_handler(resetlist_handler)
-help_handler = CommandHandler('help', help)
-dispatcher.add_handler(help_handler)
+    add_handler = CommandHandler('add', add, pass_args=True)
+    dispatcher.add_handler(add_handler)
+    remove_handler = CommandHandler('remove', remove, pass_args=True)
+    dispatcher.add_handler(remove_handler)
+    list_handler = CommandHandler('list', list)
+    dispatcher.add_handler(list_handler)
+    resetlist_handler = CommandHandler('resetlist', resetlist)
+    dispatcher.add_handler(resetlist_handler)
 
-# scheisse handler
-scheisse = ScheissFilter()
-scheisse_handler = MessageHandler(scheisse, answer_shit)
-dispatcher.add_handler(scheisse_handler)
+    # restart the bot, but only allow me to do this
+    restart_handler = CommandHandler('restart', restart,
+        filters=Filters.user(username='@davekch'))
+    dispatcher.add_handler(restart_handler)
 
-unknown_handler = MessageHandler(Filters.command, unknown)
-dispatcher.add_handler(unknown_handler)
+    help_handler = CommandHandler('help', help)
+    dispatcher.add_handler(help_handler)
+
+    # scheisse handler
+    scheisse = ScheissFilter()
+    scheisse_handler = MessageHandler(scheisse, answer_shit)
+    dispatcher.add_handler(scheisse_handler)
+
+    unknown_handler = MessageHandler(Filters.command, unknown)
+    dispatcher.add_handler(unknown_handler)
+
+    updater.start_polling()
+    updater.idle()
 
 
 if __name__=="__main__":
-    updater.start_polling()
-    updater.idle()
+    main()
