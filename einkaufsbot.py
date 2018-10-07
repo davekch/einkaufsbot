@@ -63,6 +63,12 @@ def add(bot, update, args):
     """
     add args to einkaufszettel
     """
+
+    # if no arguments were given
+    if len(args)==0:
+        bot.send_message(chat_id=update.message.chat_id, text="was soll auf die einkaufsliste drauf? Mach's so: \n/add tomaten mozarella ...")
+        return
+
     # get the einkaufszettel
     zettel = read_zettel(update.message.chat_id)
 
@@ -91,6 +97,12 @@ def remove(bot, update, args):
     """
     remove args from einkaufszettel
     """
+
+    # if no arguments were given
+    if len(args)==0:
+        bot.send_message(chat_id=update.message.chat_id, text="was soll von der einkaufsliste runter? Mach's so: \n/remove tomaten mozarella ...")
+        return
+
     zettel = read_zettel(update.message.chat_id)
 
     # remove args from zettel
