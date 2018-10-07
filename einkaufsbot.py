@@ -164,6 +164,7 @@ def main():
     # setup logging info
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                      level=logging.INFO)
+    logger = logging.getLogger(__name__)
     # bot itself
     updater = Updater(token=TOKEN)
     dispatcher = updater.dispatcher
@@ -174,6 +175,7 @@ def main():
 
     def restart(bot, update):
         update.message.reply_text("Starte Bot neu ...")
+        logger.info("Restart bot ...")
         Thread(target=stop_and_restart).start()
 
     start_handler = CommandHandler('start', start)
