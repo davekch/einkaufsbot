@@ -161,31 +161,41 @@ def resetlist(bot, update):
     return YESNOPROMPT
 
 
-def yes_no(bot, update):
+def yes_no(reply):
     """
     checks if reply is yes or no or nothing
     """
-    reply = update.message.text
     yes = ["yes", "ja", "jo", "jep", "jup", "yip", "ya"]
-    no = ["no", "nein", "ne"]
+    no = ["no", "nö", "nein", "ne"]
 
     # check if yes or no is conatained in reply
     for y in yes:
         if y in reply:
-            update.message.reply_text("ich hab 'ja' verstanden")
-            return CONVERSATION_ONGOING
+            return True
     for n in no:
         if n in reply:
-            update.message.reply_text("ok dann nicht :)")
-            return ConversationHandler.END
+            return False
+    # if not understood
+    return None
 
-    # nothing was understood
-    update.message.reply_text("hab jetzt nicht verstanden ob das ein ja oder ein nein war...")
-    return ConversationHandler.END
+
+def ask_for_payment(bot, update):
+    reply = update.message.text
+    # first check if user wants to do this
+    if yes_no(reply) is None:
+        # nothing was understood
+        update.message.reply_text("hab jetzt nicht verstanden ob das ein ja oder ein nein war...")
+        return ConversationHandler.END
+    elif yes_no(reply):
+        update.message.reply_text("ok dann gib jetzt dein geld ein")
+        return CONVERSATION_ONGOING
+    else:
+        update.message.reply_text("gut dann nicht :)")
+        return ConversationHandler.END
 
 
 def add_payment(bot, update):
-    update.message.reply_text("ok dann sag mir pls wieviel du geblecht hast")
+    update.message.reply_text("ok habs")
     return ConversationHandler.END
 
 
@@ -246,7 +256,7 @@ def main():
         entry_points = [CommandHandler('resetlist', resetlist)],
         # states of the conversation
         states = {
-            YESNOPROMPT: [MessageHandler(Filters.text, yes_no)],
+            YESNOPROMPT: [MessageHandler(Filters.text, ask_for_payment)],
             CONVERSATION_ONGOING: [MessageHandler(Filters.text, add_payment)]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
