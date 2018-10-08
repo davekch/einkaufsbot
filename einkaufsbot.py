@@ -11,6 +11,7 @@ TOKEN = open("token.txt").read().strip()
 import logging
 import json
 import random
+import re
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
@@ -170,7 +171,7 @@ def yes_no(reply):
     """
     checks if reply is yes or no or nothing
     """
-    yes = ["yes", "ja", "jo", "jep", "jup", "yip", "ya"]
+    yes = ["yes", "ja", "jo", "jep", "jes", "jawohl", "jup", "yip", "ya"]
     no = ["no", "nö", "nein", "ne"]
 
     # check if yes or no is conatained in reply
@@ -200,7 +201,38 @@ def ask_for_payment(bot, update):
 
 
 def add_payment(bot, update):
-    update.message.reply_text("ok habs")
+    """
+    extract a number from the reply and save the data to zettel
+    """
+    reply = update.message.text
+    # match a floating point number
+    matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
+    if len(matches)!=1:
+        update.message.reply_text("mehr als 1! hab ich nicht verstanden... nochmal versuchen pls!")
+        return ConversationHandler.END
+    else:
+        try:
+            # first and only match for float
+            payment = float(matches[0].replace(",", "."))
+        except ValueError:
+            update.message.reply_text("verkackt.. hab ich nicht verstanden... nochmal versuchen pls!")
+            return ConversationHandler.END
+
+    # get current userinfo
+    username = update.message.from_user.first_name
+    userid = str(update.message.from_user.id)
+    # get zettel
+    zettel = read_zettel(update.message.chat_id)
+    # check if there is already data and create it if not
+    if "payments" not in zettel:
+        zettel["payments"] = {}
+    if userid not in zettel["payments"]:
+        zettel["payments"][userid] = {"name": username, "paid": 0.0}
+    zettel["payments"][userid]["paid"] += payment
+
+    save_zettel(zettel, update.message.chat_id)
+    update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
+        " bei {}€.".format(payment, username, zettel["payments"][userid]["paid"]))
     return ConversationHandler.END
 
 
