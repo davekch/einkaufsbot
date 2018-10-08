@@ -10,6 +10,7 @@ TOKEN = open("token.txt").read().strip()
 
 import logging
 import json
+import random
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
@@ -29,7 +30,8 @@ class ScheissFilter(BaseFilter):
     """
 
     def filter(self, message):
-        scheisse = ["scheiss", "scheiß", "scheis", "shit", "fuck", "kack"]
+        scheisse = ["scheiss", "scheiß", "scheis", "shit", "fuck", "kack",
+            "arsch", "maul", "fresse"]
         for shit in scheisse:
             if shit.upper() in message.text.upper():
                 return True
@@ -41,8 +43,11 @@ def start(bot, update):
 
 
 def answer_shit(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="{}, das sagt man nicht!"\
-        .format(update.effective_user["first_name"]))
+    answers = ["das sagt man nicht", "language",
+        "so kannst du mit deinen Freunderln reden aber ned mit mir",
+        "was kennst du für wörter", "freundlich bleiben"]
+    bot.send_message(chat_id=update.message.chat_id, text="{}, {}!"\
+        .format(update.message.from_user.first_name, random.choice(answers)))
 
 
 # function to read the zettel of a given id
@@ -273,7 +278,7 @@ def main():
 
     # scheisse handler
     scheisse = ScheissFilter()
-    scheisse_handler = MessageHandler(scheisse, answer_shit)
+    scheisse_handler = MessageHandler(Filters.text & scheisse, answer_shit)
     dispatcher.add_handler(scheisse_handler)
 
     unknown_handler = MessageHandler(Filters.command, unknown)
