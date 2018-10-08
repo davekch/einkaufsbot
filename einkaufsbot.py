@@ -158,6 +158,11 @@ def resetlist(bot, update):
     removes all items from zettel["liste"]
     """
     zettel = read_zettel(update.message.chat_id)
+    if len(zettel["liste"])==0:
+        bot.send_message(chat_id=update.message.chat_id,
+            text="Die liste ist eh leer!")
+        return ConversationHandler.END
+
     zettel["liste"] = []
     save_zettel(zettel, update.message.chat_id)
     bot.send_message(chat_id=update.message.chat_id,
@@ -196,7 +201,10 @@ def ask_for_payment(bot, update):
         update.message.reply_text("ok dann gib jetzt dein geld ein")
         return CONVERSATION_ONGOING
     else:
-        update.message.reply_text("gut dann nicht :)")
+        update.message.reply_text("gut dann nicht :)\n"\
+            "wenn du doch noch speichern willst, wie viel du gezahlt hast,"\
+            " mach's einfach so:\n"\
+            "/addpayment 12,34€ (mit oder ohne €)")
         return ConversationHandler.END
 
 
@@ -213,14 +221,14 @@ def add_payment(bot, update, args=None):
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
-        update.message.reply_text("mehr als 1! hab ich nicht verstanden... nochmal versuchen pls!")
+        update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!")
         return ConversationHandler.END
     else:
         try:
             # first and only match for float
             payment = float(matches[0].replace(",", "."))
         except ValueError:
-            update.message.reply_text("verkackt.. hab ich nicht verstanden... nochmal versuchen pls!")
+            update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!")
             return ConversationHandler.END
 
     # get current userinfo
@@ -292,7 +300,7 @@ def main():
     dispatcher.add_handler(remove_handler)
     list_handler = CommandHandler('list', list)
     dispatcher.add_handler(list_handler)
-    addpayment_handler = CommandHandler('add_payment', add_payment, pass_args=True)
+    addpayment_handler = CommandHandler('addpayment', add_payment, pass_args=True)
     dispatcher.add_handler(addpayment_handler)
 
     resetlist_handler = ConversationHandler(
