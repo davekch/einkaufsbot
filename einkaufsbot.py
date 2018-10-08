@@ -200,11 +200,16 @@ def ask_for_payment(bot, update):
         return ConversationHandler.END
 
 
-def add_payment(bot, update):
+def add_payment(bot, update, args=None):
     """
     extract a number from the reply and save the data to zettel
     """
-    reply = update.message.text
+    if not args:
+        # meaning that this gets called during conversation
+        reply = update.message.text
+    else:
+        # gets called by command
+        reply = args[0]
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
@@ -287,6 +292,8 @@ def main():
     dispatcher.add_handler(remove_handler)
     list_handler = CommandHandler('list', list)
     dispatcher.add_handler(list_handler)
+    addpayment_handler = CommandHandler('add_payment', add_payment, pass_args=True)
+    dispatcher.add_handler(addpayment_handler)
 
     resetlist_handler = ConversationHandler(
         # command that triggers the conversation
