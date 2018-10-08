@@ -59,7 +59,7 @@ def read_zettel(id):
         with open(filename) as f:
             zettel = json.load(f)
     else:
-        zettel = {"liste": []}
+        zettel = {"liste": [], "payments": {}}
     return zettel
 
 
@@ -237,8 +237,6 @@ def add_payment(bot, update, args=None):
     # get zettel
     zettel = read_zettel(update.message.chat_id)
     # check if there is already data and create it if not
-    if "payments" not in zettel:
-        zettel["payments"] = {}
     if userid not in zettel["payments"]:
         zettel["payments"][userid] = {"name": username, "paid": 0.0}
     zettel["payments"][userid]["paid"] += payment
@@ -247,6 +245,38 @@ def add_payment(bot, update, args=None):
     update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
         " bei {}€.".format(payment, username, zettel["payments"][userid]["paid"]))
     return ConversationHandler.END
+
+
+def payments(bot, update):
+    """
+    list all payments
+    """
+    zettel = read_zettel(update.message.chat_id)
+
+    # if no information is given
+    if not zettel["payments"]:
+        bot.send_message(chat_id=update.message.chat_id,
+            text="niemand hat irgendwas gezahlt.")
+        return
+
+    message = "*Die Ausgaben*\n"
+    gesamt = 0.
+    N = 0  # how many users
+    for userid in zettel["payments"]:
+        user = zettel["payments"][userid]
+        message += "{}: {}€\n".format(user["name"], user["paid"])
+        gesamt += user["paid"]
+        N += 1
+
+    # do the rest only in groups
+    if update.message.chat.type=="group":
+        message += "\n=========\n"
+        message += "*Gesamtausgaben: {}€\n*".format(gesamt)
+        message += "Jeder zahlt so grob {}€ 💸\n".format(gesamt/float(N))
+        message += "\n=========\n"
+
+    bot.send_message(chat_id=update.message.chat_id, text=message,
+        parse_mode=ParseMode.MARKDOWN)
 
 
 def cancel(bot, update):
@@ -302,6 +332,8 @@ def main():
     dispatcher.add_handler(list_handler)
     addpayment_handler = CommandHandler('addpayment', add_payment, pass_args=True)
     dispatcher.add_handler(addpayment_handler)
+    payments_handler = CommandHandler('payments', payments)
+    dispatcher.add_handler(payments_handler)
 
     resetlist_handler = ConversationHandler(
         # command that triggers the conversation
