@@ -301,6 +301,17 @@ def calculate_cashflow(payments):
     return greedy.minCashFlow(graph, user)
 
 
+def reset_payments(bot, update):
+    zettel = read_zettel(update.message.chat_id)
+
+    for userid in zettel["payments"]:
+        zettel["payments"][userid]["paid"] = 0.0
+
+    save_zettel(zettel, update.message.chat_id)
+
+    bot.send_message(chat_id=update.message.chat_id, text="ok, habs zurückgesetzt.")
+
+
 def cancel(bot, update):
     update.message.reply_text("ok dieses gespräch scheint vorbei zu sein.")
     return ConversationHandler.END
@@ -356,6 +367,8 @@ def main():
     dispatcher.add_handler(addpayment_handler)
     payments_handler = CommandHandler('payments', payments)
     dispatcher.add_handler(payments_handler)
+    resetpayments_handler = CommandHandler('resetpayments', reset_payments)
+    dispatcher.add_handler(resetpayments_handler)
 
     resetlist_handler = ConversationHandler(
         # command that triggers the conversation
