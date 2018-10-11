@@ -12,6 +12,7 @@ import logging
 import json
 import random
 import re
+import greedy
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
@@ -67,7 +68,7 @@ def read_zettel(id):
 def save_zettel(zettel, id):
     filename = os.path.join(PATH, "zettel", str(id)+".json")
     with open(filename, "w") as f:
-        json.dump(zettel, f)
+        json.dump(zettel, f, sort_keys=True, indent=4)
 
 
 def add(bot, update, args):
@@ -274,9 +275,30 @@ def payments(bot, update):
         message += "*Gesamtausgaben: {}€\n*".format(gesamt)
         message += "Jeder zahlt so grob {}€ 💸\n".format(gesamt/float(N))
         message += "\n=========\n"
+        message += "*Wer hier wen bezahlt*\n"
+        # calculate cash flow
+        cashflow = calculate_cashflow(zettel["payments"])
+        for flow in cashflow:
+            message += flow + '\n'
 
     bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
+
+
+def calculate_cashflow(payments):
+    # create lists that are meaningful to functions from greedy
+    N = len(payments)
+    gezahlt = [0 for i in range(N)]
+    user = {}
+    i=0
+    for userid in payments:
+        gezahlt[i] = payments[userid]["paid"]
+        user[i] = payments[userid]["name"]
+        i+=1
+
+    # calculate schulden-graph
+    graph = greedy.calc_graph(N, gezahlt)
+    return greedy.minCashFlow(graph, user)
 
 
 def cancel(bot, update):
