@@ -6,7 +6,7 @@ import sys
 from threading import Thread
 
 PATH = os.path.dirname(os.path.realpath(__file__))
-TOKEN = open("token.txt").read().strip()
+TOKEN = open(os.path.join(PATH, "token.txt")).read().strip()
 
 import logging
 import json
