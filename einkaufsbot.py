@@ -31,11 +31,15 @@ class ScheissFilter(BaseFilter):
     """
     class to filter messages that contain bad words
     """
+    # get the forbidden words
+    def __init__(self):
+        super().__init__()
+        badwords_file = os.path.join(PATH, "templates", "badwords.txt")
+        with open(badwords_file) as f:
+            self.scheisse = f.read().split()
 
     def filter(self, message):
-        scheisse = ["scheiss", "scheiß", "scheis", "shit", "fuck", "kack",
-            "arsch", "maul", "fresse"]
-        for shit in scheisse:
+        for shit in self.scheisse:
             if shit.upper() in message.text.upper():
                 return True
         return False
