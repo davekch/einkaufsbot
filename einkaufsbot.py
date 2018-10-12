@@ -324,7 +324,10 @@ def help(bot, update):
                 " mit leerzeichen trennen!\n"\
                 "/remove lösche zeugs von der einkaufsliste, genauso wie bei add\n"\
                 "/list lass dir die gesamte einkaufsliste anzeigen\n"\
-                "/resetlist lösche die ganze einkaufsliste\n"
+                "/resetlist lösche die ganze einkaufsliste\n"\
+                "/addpayment speichere wieviel du für einen Einkauf gezahlt hast\n"\
+                "/payments sieh nach wieviel wer für Einkäufe gezahlt hat\n"\
+                "/resetpayments setze alle Beträge auf 0€"
     bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
 
