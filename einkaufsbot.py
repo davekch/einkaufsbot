@@ -12,6 +12,7 @@ import logging
 import json
 import random
 import re
+from string import Template
 import greedy
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
@@ -278,15 +279,16 @@ def payments(bot, update):
 
     # do the rest only in groups
     if update.message.chat.type=="group":
-        message += "\n=========\n"
-        message += "*Gesamtausgaben: {}€\n*".format(gesamt)
-        message += "Jeder zahlt so grob {}€ 💸\n".format(gesamt/float(N))
-        message += "\n=========\n"
-        message += "*Wer hier wen bezahlt*\n"
         # calculate cash flow
         cashflow = calculate_cashflow(zettel["payments"])
-        for flow in cashflow:
-            message += flow + '\n'
+        # format message via template
+        payments_templatefile = os.path.join(PATH, "templates", "payments.txt")
+        with open(payments_templatefile) as f:
+            template = Template(f.read())
+        # create json to fill template
+        data = {"gesamt":gesamt, "jeder": gesamt/float(N), "cashflow":"\n".join(cashflow) }
+        message += template.substitute(data)
+
 
     bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
@@ -325,16 +327,19 @@ def cancel(bot, update):
 
 
 def help(bot, update):
-    message = "*Hallo ich bin der Einkauf-Heini!*\n"\
-                "Das kann ich alles:\n\n"\
-                "/add füge zeugs zur einkaufsliste hinzu. mehrere Sachen"\
-                " mit leerzeichen trennen!\n"\
-                "/remove lösche zeugs von der einkaufsliste, genauso wie bei add\n"\
-                "/list lass dir die gesamte einkaufsliste anzeigen\n"\
-                "/resetlist lösche die ganze einkaufsliste\n"\
-                "/addpayment speichere wieviel du für einen Einkauf gezahlt hast\n"\
-                "/payments sieh nach wieviel wer für Einkäufe gezahlt hat\n"\
-                "/resetpayments setze alle Beträge auf 0€"
+    help_templatefile = os.path.join(PATH, "templates", "help.txt")
+    with open(help_templatefile) as f:
+        message = f.read()
+    # message = "*Hallo ich bin der Einkauf-Heini!*\n"\
+    #             "Das kann ich alles:\n\n"\
+    #             "/add füge zeugs zur einkaufsliste hinzu. mehrere Sachen"\
+    #             " mit leerzeichen trennen!\n"\
+    #             "/remove lösche zeugs von der einkaufsliste, genauso wie bei add\n"\
+    #             "/list lass dir die gesamte einkaufsliste anzeigen\n"\
+    #             "/resetlist lösche die ganze einkaufsliste\n"\
+    #             "/addpayment speichere wieviel du für einen Einkauf gezahlt hast\n"\
+    #             "/payments sieh nach wieviel wer für Einkäufe gezahlt hat\n"\
+    #             "/resetpayments setze alle Beträge auf 0€"
     bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
 

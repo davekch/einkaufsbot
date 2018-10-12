@@ -1,0 +1,8 @@
+
+=========
+*Gesamtausgaben: $gesamt€*
+Jeder zahlt so grob $jeder€ 💸
+
+=========
+*Wer hier wen bezahlt*
+$cashflow

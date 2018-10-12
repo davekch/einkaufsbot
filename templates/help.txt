@@ -1,0 +1,11 @@
+*Hallo ich bin der Einkauf-Heini!*
+Das kann ich alles:
+
+/add füge zeugs zur einkaufsliste hinzu. mehrere Sachen
+ mit leerzeichen trennen!
+/remove lösche zeugs von der einkaufsliste, genauso wie bei add
+/list lass dir die gesamte einkaufsliste anzeigen
+/resetlist lösche die ganze einkaufsliste
+/addpayment speichere wieviel du für einen Einkauf gezahlt hast
+/payments sieh nach wieviel wer für Einkäufe gezahlt hat
+/resetpayments setze alle Beträge auf 0€
