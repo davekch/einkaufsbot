@@ -214,6 +214,11 @@ def add_payment(bot, update, args=None):
     extract a number from the reply and save the data to zettel
     """
     if not args:
+        # check if addpayment was called without arguments
+        if "/addpayment" in update.message.text:
+            bot.send_message(chat_id=update.message.chat_id,
+                text="Bitte benutze den Befehl so: /addpayment 34,99€")
+            return
         # meaning that this gets called during conversation
         reply = update.message.text
     else:
@@ -222,14 +227,16 @@ def add_payment(bot, update, args=None):
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
-        update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!")
+        update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
+            "Bitte benutze den Befehl so: /addpayment 34,99€")
         return ConversationHandler.END
     else:
         try:
             # first and only match for float
             payment = float(matches[0].replace(",", "."))
         except ValueError:
-            update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!")
+            update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
+                "Bitte benutze den Befehl so: /addpayment 34,99€")
             return ConversationHandler.END
 
     # get current userinfo
