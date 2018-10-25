@@ -187,10 +187,10 @@ def yes_no(reply):
 
     # check if yes or no is conatained in reply
     for y in yes:
-        if y in reply:
+        if y.upper() in reply.upper():
             return True
     for n in no:
-        if n in reply:
+        if n.upper() in reply.upper():
             return False
     # if not understood
     return None
