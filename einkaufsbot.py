@@ -53,6 +53,11 @@ class MyCommandHandler(CommandHandler):
         return self.callback(dispatcher.bot, update, **optional_args)
 
 
+def is_blubu(chat_id):
+    # check if chat is blubu group
+    return chat_id==-307008431
+
+
 class ScheissFilter(BaseFilter):
     """
     class to filter messages that contain bad words
@@ -118,6 +123,9 @@ def add(bot, update, args):
     # check if items are already in list and add them/write message
     message = ""
     for item in args:
+        # blubu special
+        if is_blubu(update.message.chat_id) and item.upper()=="SALZBREZELN":
+            bot.send_message(chat_id=update.message.chat_id, text="salzbrezeln 😍\n\n")
         if item.upper() not in zettel["liste"]:
             zettel["liste"].append(item.upper())
         else:
@@ -153,6 +161,8 @@ def remove(bot, update, args):
     for item in args:
         try:
             zettel["liste"].remove(item.upper())
+            if is_blubu(update.message.chat_id):
+                bot.send_message(chat_id=update.message.chat_id, text="spinnst du, die salzbrezeln?? 😵🥨")
         except ValueError:
             if message=="":
                 message += "{} steht eh nicht auf dem zettel!\n".format(item)
@@ -196,6 +206,9 @@ def resetlist(bot, update):
         return ConversationHandler.END
 
     zettel["liste"] = []
+    # keep salzbrezeln in blubu list
+    if is_blubu(update.message.chat_id):
+        zettel["liste"].append("SALZBREZELN")
     save_zettel(zettel, update.message.chat_id)
     bot.send_message(chat_id=update.message.chat_id,
         text="ok, hab die einkaufsliste gelöscht. willst du gleich angeben wieviel du gezahlt hast (falls du zufällig grad einkaufen warst)?")
