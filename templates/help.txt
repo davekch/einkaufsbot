@@ -2,7 +2,8 @@
 Das kann ich alles:
 
 /add füge zeugs zur einkaufsliste hinzu. mehrere Sachen
- mit leerzeichen trennen!
+ mit leerzeichen trennen! sachen die zusammengehören in anführungsstriche
+ setzen, zB /add "5000g nudeln" tomaten pesto ...
 /remove lösche zeugs von der einkaufsliste, genauso wie bei add
 /list lass dir die gesamte einkaufsliste anzeigen
 /resetlist lösche die ganze einkaufsliste

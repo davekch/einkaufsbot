@@ -12,6 +12,7 @@ import logging
 import json
 import random
 import re
+import shlex
 from string import Template
 import greedy
 from telegram.ext import Updater
@@ -25,6 +26,31 @@ from telegram import ParseMode
 
 # conversation states
 YESNOPROMPT, CONVERSATION_ONGOING = range(2)
+
+
+class MyCommandHandler(CommandHandler):
+    """
+    commandhandler which doesnt always split args at " "
+    """
+
+    def handle_update(self, update, dispatcher):
+        """Send the update to the :attr:`callback`.
+        Args:
+            update (:class:`telegram.Update`): Incoming telegram update.
+            dispatcher (:class:`telegram.ext.Dispatcher`): Dispatcher that originated the Update.
+        """
+        optional_args = self.collect_optional_args(dispatcher, update)
+
+        message = update.message or update.edited_message
+
+        if self.pass_args:
+            # split shlex if possible
+            try:
+                optional_args['args'] = shlex.split(message.text)[1:]
+            except:
+                optional_args['args'] = message.text.split()[1:]
+
+        return self.callback(dispatcher.bot, update, **optional_args)
 
 
 class ScheissFilter(BaseFilter):
@@ -334,16 +360,6 @@ def help(bot, update):
     help_templatefile = os.path.join(PATH, "templates", "help.txt")
     with open(help_templatefile) as f:
         message = f.read()
-    # message = "*Hallo ich bin der Einkauf-Heini!*\n"\
-    #             "Das kann ich alles:\n\n"\
-    #             "/add füge zeugs zur einkaufsliste hinzu. mehrere Sachen"\
-    #             " mit leerzeichen trennen!\n"\
-    #             "/remove lösche zeugs von der einkaufsliste, genauso wie bei add\n"\
-    #             "/list lass dir die gesamte einkaufsliste anzeigen\n"\
-    #             "/resetlist lösche die ganze einkaufsliste\n"\
-    #             "/addpayment speichere wieviel du für einen Einkauf gezahlt hast\n"\
-    #             "/payments sieh nach wieviel wer für Einkäufe gezahlt hat\n"\
-    #             "/resetpayments setze alle Beträge auf 0€"
     bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
 
@@ -373,40 +389,40 @@ def main():
         logger.info("Restart bot ...")
         Thread(target=stop_and_restart).start()
 
-    start_handler = CommandHandler('start', start)
+    start_handler = MyCommandHandler('start', start)
     dispatcher.add_handler(start_handler)
 
-    add_handler = CommandHandler('add', add, pass_args=True)
+    add_handler = MyCommandHandler('add', add, pass_args=True)
     dispatcher.add_handler(add_handler)
-    remove_handler = CommandHandler('remove', remove, pass_args=True)
+    remove_handler = MyCommandHandler('remove', remove, pass_args=True)
     dispatcher.add_handler(remove_handler)
-    list_handler = CommandHandler('list', list)
+    list_handler = MyCommandHandler('list', list)
     dispatcher.add_handler(list_handler)
-    addpayment_handler = CommandHandler('addpayment', add_payment, pass_args=True)
+    addpayment_handler = MyCommandHandler('addpayment', add_payment, pass_args=True)
     dispatcher.add_handler(addpayment_handler)
-    payments_handler = CommandHandler('payments', payments)
+    payments_handler = MyCommandHandler('payments', payments)
     dispatcher.add_handler(payments_handler)
-    resetpayments_handler = CommandHandler('resetpayments', reset_payments)
+    resetpayments_handler = MyCommandHandler('resetpayments', reset_payments)
     dispatcher.add_handler(resetpayments_handler)
 
     resetlist_handler = ConversationHandler(
         # command that triggers the conversation
-        entry_points = [CommandHandler('resetlist', resetlist)],
+        entry_points = [MyCommandHandler('resetlist', resetlist)],
         # states of the conversation
         states = {
             YESNOPROMPT: [MessageHandler(Filters.text, ask_for_payment)],
             CONVERSATION_ONGOING: [MessageHandler(Filters.text, add_payment)]
         },
-        fallbacks=[CommandHandler('cancel', cancel)]
+        fallbacks=[MyCommandHandler('cancel', cancel)]
     )
     dispatcher.add_handler(resetlist_handler)
 
     # restart the bot, but only allow me to do this
-    restart_handler = CommandHandler('restart', restart,
+    restart_handler = MyCommandHandler('restart', restart,
         filters=Filters.user(username='@davekch'))
     dispatcher.add_handler(restart_handler)
 
-    help_handler = CommandHandler('help', help)
+    help_handler = MyCommandHandler('help', help)
     dispatcher.add_handler(help_handler)
 
     # scheisse handler
