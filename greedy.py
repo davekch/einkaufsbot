@@ -61,7 +61,7 @@ def minCashFlowRec(amount, user, results):
     amount[mxDebit] += min
 
     # If minimum is the maximum amount to be
-    results.append("{} zahlt {} {}€".format(user[mxDebit], user[mxCredit], min))
+    results.append("{} zahlt {} {}€".format(user[mxDebit], user[mxCredit], round(min,2)))
 
     # Recur for the amount array. Note that
     # it is guaranteed that the recursion
