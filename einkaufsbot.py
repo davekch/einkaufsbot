@@ -297,7 +297,7 @@ def add_payment(bot, update, args=None):
 
     save_zettel(zettel, update.message.chat_id)
     update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
-        " bei {}€.".format(payment, username, zettel["payments"][userid]["paid"]))
+        " bei {}€.".format(payment, username, round(zettel["payments"][userid]["paid"],2)))
     return ConversationHandler.END
 
 
@@ -318,7 +318,7 @@ def payments(bot, update):
     N = 0  # how many users
     for userid in zettel["payments"]:
         user = zettel["payments"][userid]
-        message += "{}: {}€\n".format(user["name"], user["paid"])
+        message += "{}: {}€\n".format(user["name"], round(user["paid"],2))
         gesamt += user["paid"]
         N += 1
 
@@ -331,7 +331,7 @@ def payments(bot, update):
         with open(payments_templatefile) as f:
             template = Template(f.read())
         # create json to fill template
-        data = {"gesamt":gesamt, "jeder": gesamt/float(N), "cashflow":"\n".join(cashflow) }
+        data = {"gesamt":round(gesamt,2), "jeder": round(gesamt/float(N),2), "cashflow":"\n".join(cashflow) }
         message += template.substitute(data)
 
 
