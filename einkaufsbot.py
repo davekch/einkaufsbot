@@ -226,9 +226,8 @@ def ask_for_payment(bot, update):
     reply = update.message.text
     # first check if user wants to do this
     if yes_no(reply) is None:
-        # nothing was understood
-        update.message.reply_text("hab jetzt nicht verstanden ob das ein ja oder ein nein war...")
-        return ConversationHandler.END
+        # nothing was understood, try to extract payment info from answer
+        return add_payment(bot, update, args=[reply])
     elif yes_no(reply):
         update.message.reply_text("ok dann gib jetzt dein geld ein")
         return CONVERSATION_ONGOING
@@ -248,7 +247,7 @@ def add_payment(bot, update, args=None):
         # check if addpayment was called without arguments
         if "/addpayment" in update.message.text:
             bot.send_message(chat_id=update.message.chat_id,
-                text="Bitte benutze den Befehl so: /addpayment 34,99€")
+                text="Bitte benutze den Befehl so:\n /addpayment 34,99€ (mit oder ohne €)")
             return
         # meaning that this gets called during conversation
         reply = update.message.text
@@ -259,7 +258,7 @@ def add_payment(bot, update, args=None):
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
         update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
-            "Bitte benutze den Befehl so: /addpayment 34,99€")
+            "Machs einfach so:\n /addpayment 34,99€ (mit oder ohne €)")
         return ConversationHandler.END
     else:
         try:
@@ -267,7 +266,7 @@ def add_payment(bot, update, args=None):
             payment = float(matches[0].replace(",", "."))
         except ValueError:
             update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
-                "Bitte benutze den Befehl so: /addpayment 34,99€")
+                "Machs einfach so: /addpayment 34,99€ (mit oder ohne €)")
             return ConversationHandler.END
 
     # get current userinfo
