@@ -161,7 +161,7 @@ def remove(bot, update, args):
     for item in args:
         try:
             zettel["liste"].remove(item.upper())
-            if is_blubu(update.message.chat_id):
+            if is_blubu(update.message.chat_id) and item.upper()=="SALZBREZELN":
                 bot.send_message(chat_id=update.message.chat_id, text="spinnst du, die salzbrezeln?? 😵🥨")
         except ValueError:
             if message=="":
