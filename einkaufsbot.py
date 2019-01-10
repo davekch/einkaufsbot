@@ -71,6 +71,16 @@ class ScheissFilter(BaseFilter):
         return False
 
 
+class PoltFilter(BaseFilter):
+    """
+    class to filter messages for "servus heini"
+    """
+    def filter(self, message):
+        if "heini" in message.text.lower():
+            return True
+        return False
+
+
 def start(bot, update):
     bot.send_message(chat_id=update.message.chat_id, text="Hallo, ich bin der Einkaufs-Heini. Schick mir den /help befehl um mehr zu lernen.")
 
@@ -81,6 +91,12 @@ def answer_shit(bot, update):
         "was kennst du für wörter", "freundlich bleiben"]
     bot.send_message(chat_id=update.message.chat_id, text="{}, {}!"\
         .format(update.message.from_user.first_name, random.choice(answers)))
+
+
+def answer_polt(bot, update):
+    erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
+    voicefile = os.path.join(PATH, "polt", random.choice(erwin)+".ogg")
+    bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
 
 
 # function to read the zettel of a given id
@@ -428,6 +444,11 @@ def main():
     scheisse = ScheissFilter()
     scheisse_handler = MessageHandler(Filters.text & scheisse, answer_shit)
     dispatcher.add_handler(scheisse_handler)
+
+    # polt handler
+    polt = PoltFilter()
+    polt_handler = MessageHandler(Filters.text & polt, answer_polt)
+    dispatcher.add_handler(polt_handler)
 
     unknown_handler = MessageHandler(Filters.command, unknown)
     dispatcher.add_handler(unknown_handler)
