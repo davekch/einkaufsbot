@@ -55,7 +55,8 @@ class MyCommandHandler(CommandHandler):
 
 def is_blubu(chat_id):
     # check if chat is blubu group
-    return chat_id==-307008431
+    specials = [-307008431, -295936069]
+    return chat_id in specials
 
 
 class ScheissFilter(BaseFilter):
