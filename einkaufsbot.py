@@ -4,6 +4,8 @@
 import os
 import sys
 from threading import Thread
+from datetime import timedelta
+from datetime import datetime
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 TOKEN = open(os.path.join(PATH, "token.txt")).read().strip()
@@ -22,6 +24,8 @@ from telegram.ext import ConversationHandler
 from telegram.ext import Filters
 from telegram.ext import BaseFilter
 from telegram import ParseMode
+
+import putzplan
 
 
 # conversation states
@@ -55,7 +59,7 @@ class MyCommandHandler(CommandHandler):
 
 def is_blubu(chat_id):
     # check if chat is blubu group
-    specials = [-307008431, -295936069]
+    specials = [-307008431, -295936069, 223200812]
     return chat_id in specials
 
 
@@ -408,6 +412,21 @@ def main():
     # bot itself
     updater = Updater(token=TOKEN)
     dispatcher = updater.dispatcher
+
+    # putzplan shizzle
+    # get next monday
+    onDay = lambda date, day: date + timedelta(days=(day-date.weekday()+7)%7)
+    first = onDay(datetime.now(), 0)
+    first = first.replace(hour=9, minute=0)
+    job = updater.job_queue
+    job.run_repeating(putzplan.callback,
+        interval=timedelta(weeks=1),
+        first=first)
+    def putz(bot, update):
+        if is_blubu(update.message.chat_id):
+            putzplan.p.show_plan(bot, update.message.chat_id)
+    putz_handler = MyCommandHandler('putzplan', putz)
+    dispatcher.add_handler(putz_handler)
 
     def stop_and_restart():
         updater.stop()
