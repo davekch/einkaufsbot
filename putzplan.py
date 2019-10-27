@@ -2,11 +2,14 @@
 # -*- coding: utf-8 -*-
 from telegram import ParseMode
 import json
+import os
+
+PATH = os.path.dirname(os.path.realpath(__file__))
 
 class Putzplan:
 
     def __init__(self):
-        with open("putzplan.json") as f:
+        with open(os.path.join(PATH, "putzplan.json")) as f:
             self.putzplan = json.load(f)
 
     def show_plan(self, bot, chat_id):
@@ -22,7 +25,7 @@ class Putzplan:
     def rearange(self):
         for plan in self.putzplan.values():
             plan["index"] = (plan["index"] + 1) % (len(plan["folks"]))
-        with open("putzplan.json", "w") as f:
+        with open(os.path.join(PATH, "putzplan.json"), "w") as f:
             json.dump(self.putzplan, f, indent=4)
 
 
