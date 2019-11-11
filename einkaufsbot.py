@@ -80,6 +80,12 @@ class PoltFilter(BaseFilter):
             return True
         return False
 
+class ForMeFilter(BaseFilter):
+    def filter(self, message):
+        if message.bot.username.lower() in message.text.split("@")[1].lower():
+            return True
+        return False
+
 
 def start(bot, update):
     bot.send_message(chat_id=update.message.chat_id, text="Hallo, ich bin der Einkaufs-Heini. Schick mir den /help befehl um mehr zu lernen.")
@@ -450,7 +456,7 @@ def main():
     polt_handler = MessageHandler(Filters.text & polt, answer_polt)
     dispatcher.add_handler(polt_handler)
 
-    unknown_handler = MessageHandler(Filters.command, unknown)
+    unknown_handler = MessageHandler(Filters.command & ForMeFilter(), unknown)
     dispatcher.add_handler(unknown_handler)
 
     updater.start_polling()
