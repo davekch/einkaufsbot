@@ -1,7 +1,15 @@
 {
     "-335242849": {
-        "folks": ["Luca", "Inés", "David"],
-        "tasks": ["Küche", "Bad", "Boden"],
-        "index": 0
+        "index": 0,
+        "tasks": [
+            "K\u00fcche",
+            "Bad",
+            "Boden"
+        ],
+        "folks": [
+            "Luca",
+            "In\u00e9s",
+            "David"
+        ]
     }
 }
