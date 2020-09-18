@@ -202,6 +202,8 @@ def list(bot, update):
     else:
         message = "*Die Einkaufsliste*\n"
         for item in zettel["liste"]:
+            # replace markdown special characters
+            item = item.replace("*", "\\*").replace("_", "\\_")
             message += item.lower()+'\n'
         bot.send_message(chat_id=update.message.chat_id, text=message,
             parse_mode=ParseMode.MARKDOWN)
