@@ -232,8 +232,8 @@ def yes_no(reply):
     """
     checks if reply is yes or no or nothing
     """
-    yes = ["yes", "ja", "jo", "jep", "jes", "jawohl", "jup", "yip", "ya"]
-    no = ["no", "nö", "nein", "ne"]
+    yes = ["yes", "ja", "jo", "jep", "jes", "jawohl", "jup", "yip", "ya", "klar"]
+    no = ["no", "nö", "nein", "ne", "später", "nicht"]
 
     # check if yes or no is conatained in reply
     for y in yes:
