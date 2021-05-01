@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import os
@@ -89,6 +89,12 @@ class PoltFilter(BaseFilter):
     """
     def filter(self, message):
         if "heini" in message.text.lower():
+            return True
+        return False
+
+class ForMeFilter(BaseFilter):
+    def filter(self, message):
+        if message.bot.username.lower() in message.text.split("@")[1].lower():
             return True
         return False
 
@@ -208,6 +214,8 @@ def list(bot, update):
     else:
         message = "*Die Einkaufsliste*\n"
         for item in zettel["liste"]:
+            # replace markdown special characters
+            item = item.replace("*", "\\*").replace("_", "\\_")
             message += item.lower()+'\n'
         bot.send_message(chat_id=update.message.chat_id, text=message,
             parse_mode=ParseMode.MARKDOWN)
@@ -236,8 +244,8 @@ def yes_no(reply):
     """
     checks if reply is yes or no or nothing
     """
-    yes = ["yes", "ja", "jo", "jep", "jes", "jawohl", "jup", "yip", "ya"]
-    no = ["no", "nö", "nein", "ne"]
+    yes = ["yes", "ja", "jo", "jep", "jes", "jawohl", "jup", "yip", "ya", "klar"]
+    no = ["no", "nö", "nein", "ne", "später", "nicht"]
 
     # check if yes or no is conatained in reply
     for y in yes:
@@ -476,7 +484,7 @@ def main():
     polt_handler = MessageHandler(Filters.text & polt, answer_polt)
     dispatcher.add_handler(polt_handler)
 
-    unknown_handler = MessageHandler(Filters.command, unknown)
+    unknown_handler = MessageHandler(Filters.command & ForMeFilter(), unknown)
     dispatcher.add_handler(unknown_handler)
 
     updater.start_polling()
