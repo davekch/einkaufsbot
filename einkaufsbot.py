@@ -53,6 +53,8 @@ class MyCommandHandler(CommandHandler):
                 optional_args['args'] = shlex.split(message.text)[1:]
             except:
                 optional_args['args'] = message.text.split()[1:]
+            # remove trailing commas
+            optional_args['args'] = [a.strip(',') for a in optional_args['args']]
 
         return self.callback(dispatcher.bot, update, **optional_args)
 
