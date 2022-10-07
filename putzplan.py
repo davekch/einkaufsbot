@@ -35,3 +35,7 @@ def callback(bot, job):
     p.rearange()
     for chat_id in p.putzplan:
         p.show_plan(bot, int(chat_id))
+
+def callback_show(bot, job):
+    for chat_id in p.putzplan:
+        p.show_plan(bot, int(chat_id))

@@ -422,10 +422,17 @@ def main():
     onDay = lambda date, day: date + timedelta(days=(day-date.weekday()+7)%7)
     first = onDay(datetime.now(), 0)
     first = first.replace(hour=9, minute=0)
+    second = onDay(datetime.now(), 4)
+    second = second.replace(hour=15, minute=0)
     job = updater.job_queue
     job.run_repeating(putzplan.callback,
         interval=timedelta(weeks=1),
         first=first)
+    job.run_repeating(
+        putzplan.callback_show,
+        interval=timedelta(weeks=1),
+        first=second
+    )
     def putz(bot, update):
         putzplan.p.show_plan(bot, update.message.chat_id)
     putz_handler = MyCommandHandler('putzplan', putz)
