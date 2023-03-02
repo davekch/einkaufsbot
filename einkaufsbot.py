@@ -94,6 +94,23 @@ class PoltFilter(BaseFilter):
             return True
         return False
 
+
+class PizzaFilter(BaseFilter):
+    def filter(self, message):
+        triggers = [
+            "pizza",
+            "was willst du",
+            "was möchtest du",
+            "bestellen?",
+        ]
+        return any(t in message.text.lower() for t in triggers)
+
+
+class PastaFilter(BaseFilter):
+    def filter(self, message):
+        triggers = ["pasta", "nudel", "aldente", "al dente"]
+        return any(t in message.text.lower() for t in triggers)
+
 class ForMeFilter(BaseFilter):
     def filter(self, message):
         if message.bot.username.lower() in message.text.split("@")[1].lower():
@@ -117,6 +134,13 @@ def answer_polt(bot, update):
     erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
     voicefile = os.path.join(PATH, "polt", random.choice(erwin)+".ogg")
     bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
+
+
+def send_voice(voicename):
+    voicefile = os.path.join(PATH, "polt", voicename)
+    def _send_voice(bot, update):
+        bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
+    return _send_voice
 
 
 # function to read the zettel of a given id
@@ -492,6 +516,14 @@ def main():
     polt = PoltFilter()
     polt_handler = MessageHandler(Filters.text & polt, answer_polt)
     dispatcher.add_handler(polt_handler)
+
+    # pasta and pizza handlers
+    pizza = PizzaFilter()
+    pizza_handler = MessageHandler(Filters.text & pizza, send_voice("pizza.ogg"))
+    dispatcher.add_handler(pizza_handler)
+    pasta = PastaFilter()
+    pasta_handler = MessageHandler(Filters.text & pasta, send_voice("aldente.ogg"))
+    dispatcher.add_handler(pasta_handler)
 
     unknown_handler = MessageHandler(Filters.command & ForMeFilter(), unknown)
     dispatcher.add_handler(unknown_handler)
