@@ -6,7 +6,6 @@ import sys
 from threading import Thread
 from datetime import timedelta
 from datetime import datetime
-
 PATH = os.path.dirname(os.path.realpath(__file__))
 TOKEN = open(os.path.join(PATH, "token.txt")).read().strip()
 
@@ -17,13 +16,13 @@ import re
 import shlex
 from string import Template
 import greedy
-from telegram.ext import Updater
+from telegram.ext import Application, ApplicationBuilder
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
 from telegram.ext import ConversationHandler
-from telegram.ext import Filters
-from telegram.ext import BaseFilter
-from telegram import ParseMode
+from telegram.ext import filters
+from telegram.ext.filters import BaseFilter, MessageFilter
+from telegram.constants import ParseMode
 
 import putzplan
 
@@ -37,26 +36,19 @@ class MyCommandHandler(CommandHandler):
     commandhandler which doesnt always split args at " "
     """
 
-    def handle_update(self, update, dispatcher):
-        """Send the update to the :attr:`callback`.
-        Args:
-            update (:class:`telegram.Update`): Incoming telegram update.
-            dispatcher (:class:`telegram.ext.Dispatcher`): Dispatcher that originated the Update.
-        """
-        optional_args = self.collect_optional_args(dispatcher, update)
+    def collect_additional_context(self, context, update, application, check_result):
+        super().collect_additional_context(context, update, application, check_result)
+        # merge args back together
+        args = " ".join(context.args)
 
-        message = update.message or update.edited_message
-
-        if self.pass_args:
-            # split shlex if possible
-            try:
-                optional_args['args'] = shlex.split(message.text)[1:]
-            except:
-                optional_args['args'] = message.text.split()[1:]
-            # remove trailing commas
-            optional_args['args'] = [a.strip(',') for a in optional_args['args']]
-
-        return self.callback(dispatcher.bot, update, **optional_args)
+        # split shlex if possible
+        try:
+            args = shlex.split(args)
+        except:
+            args = args.split()
+        # remove trailing commas
+        args = [a.strip(',') for a in args]
+        context.args = args
 
 
 def is_blubu(chat_id):
@@ -67,7 +59,7 @@ def is_blubu(chat_id):
     return chat_id in specials
 
 
-class ScheissFilter(BaseFilter):
+class ScheissFilter(MessageFilter):
     """
     class to filter messages that contain bad words
     """
@@ -85,7 +77,7 @@ class ScheissFilter(BaseFilter):
         return False
 
 
-class PoltFilter(BaseFilter):
+class PoltFilter(MessageFilter):
     """
     class to filter messages for "servus heini"
     """
@@ -95,7 +87,7 @@ class PoltFilter(BaseFilter):
         return False
 
 
-class PizzaFilter(BaseFilter):
+class PizzaFilter(MessageFilter):
     def filter(self, message):
         triggers = [
             "pizza",
@@ -106,40 +98,34 @@ class PizzaFilter(BaseFilter):
         return any(t in message.text.lower() for t in triggers)
 
 
-class PastaFilter(BaseFilter):
+class PastaFilter(MessageFilter):
     def filter(self, message):
         triggers = ["pasta", "nudel", "aldente", "al dente"]
         return any(t in message.text.lower() for t in triggers)
 
-class ForMeFilter(BaseFilter):
-    def filter(self, message):
-        if message.bot.username.lower() in message.text.split("@")[1].lower():
-            return True
-        return False
+
+async def start(update, context):
+    await context.bot.send_message(chat_id=update.message.chat_id, text="Hallo, ich bin der Einkaufs-Heini. Schick mir den /help befehl um mehr zu lernen.")
 
 
-def start(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="Hallo, ich bin der Einkaufs-Heini. Schick mir den /help befehl um mehr zu lernen.")
-
-
-def answer_shit(bot, update):
+async def answer_shit(update, context):
     answers = ["das sagt man nicht", "language",
         "so kannst du mit deinen Freunderln reden aber ned mit mir",
         "was kennst du für wörter", "freundlich bleiben"]
-    bot.send_message(chat_id=update.message.chat_id, text="{}, {}!"\
+    await context.bot.send_message(chat_id=update.message.chat_id, text="{}, {}!"\
         .format(update.message.from_user.first_name, random.choice(answers)))
 
 
-def answer_polt(bot, update):
+async def answer_polt(update, context):
     erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
     voicefile = os.path.join(PATH, "polt", random.choice(erwin)+".ogg")
-    bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
+    await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
 
 
 def send_voice(voicename):
     voicefile = os.path.join(PATH, "polt", voicename)
-    def _send_voice(bot, update):
-        bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
+    async def _send_voice(update, context):
+        await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
     return _send_voice
 
 
@@ -162,14 +148,15 @@ def save_zettel(zettel, id):
         json.dump(zettel, f, sort_keys=True, indent=4)
 
 
-def add(bot, update, args):
+async def add(update, context):
     """
     add args to einkaufszettel
     """
 
+    args = context.args
     # if no arguments were given
     if len(args)==0:
-        bot.send_message(chat_id=update.message.chat_id, text="was soll auf die einkaufsliste drauf? Mach's so: \n/add tomaten mozarella ...")
+        context.bot.send_message(chat_id=update.message.chat_id, text="was soll auf die einkaufsliste drauf? Mach's so: \n/add tomaten mozarella ...")
         return
 
     # get the einkaufszettel
@@ -192,18 +179,19 @@ def add(bot, update, args):
     else:
         message += "hab den rest aufgeschrieben!"
 
-    bot.send_message(chat_id=update.message.chat_id, text=message)
+    await context.bot.send_message(chat_id=update.message.chat_id, text=message)
     save_zettel(zettel, update.message.chat_id)
 
 
-def remove(bot, update, args):
+async def remove(update, context):
     """
     remove args from einkaufszettel
     """
 
+    args = context.args
     # if no arguments were given
     if len(args)==0:
-        bot.send_message(chat_id=update.message.chat_id, text="was soll von der einkaufsliste runter? Mach's so: \n/remove tomaten mozarella ...")
+        context.bot.send_message(chat_id=update.message.chat_id, text="was soll von der einkaufsliste runter? Mach's so: \n/remove tomaten mozarella ...")
         return
 
     zettel = read_zettel(update.message.chat_id)
@@ -224,18 +212,18 @@ def remove(bot, update, args):
     else:
         message += "hab den rest runter von der liste."
 
-    bot.send_message(chat_id=update.message.chat_id, text=message)
+    await context.bot.send_message(chat_id=update.message.chat_id, text=message)
     save_zettel(zettel, update.message.chat_id)
 
 
-def list(bot, update):
+async def list(update, context):
     """
     list all items in einkaufsliste
     """
     zettel = read_zettel(update.message.chat_id)
 
     if len(zettel["liste"])==0:
-        bot.send_message(chat_id=update.message.chat_id,
+        await context.bot.send_message(chat_id=update.message.chat_id,
             text="hab keine einkaufsliste grad.")
     else:
         message = "*Die Einkaufsliste*\n"
@@ -243,23 +231,23 @@ def list(bot, update):
             # replace markdown special characters
             item = item.replace("*", "\\*").replace("_", "\\_")
             message += item.lower()+'\n'
-        bot.send_message(chat_id=update.message.chat_id, text=message,
+        await context.bot.send_message(chat_id=update.message.chat_id, text=message,
             parse_mode=ParseMode.MARKDOWN)
 
 
-def resetlist(bot, update):
+async def resetlist(update, context):
     """
     removes all items from zettel["liste"]
     """
     zettel = read_zettel(update.message.chat_id)
     if len(zettel["liste"])==0:
-        bot.send_message(chat_id=update.message.chat_id,
+        await context.bot.send_message(chat_id=update.message.chat_id,
             text="Die liste ist eh leer!")
         return ConversationHandler.END
 
     zettel["liste"] = []
     save_zettel(zettel, update.message.chat_id)
-    bot.send_message(chat_id=update.message.chat_id,
+    await context.bot.send_message(chat_id=update.message.chat_id,
         text="ok, hab die einkaufsliste gelöscht. willst du gleich angeben wieviel du gezahlt hast (falls du zufällig grad einkaufen warst)?")
 
     # return conversation status yesno
@@ -283,32 +271,33 @@ def yes_no(reply):
     # if not understood
     return None
 
+from telegram.ext import ContextTypes
 
-def ask_for_payment(bot, update):
+async def ask_for_payment(update, context):
     reply = update.message.text
     # first check if user wants to do this
     if yes_no(reply) is None:
         # nothing was understood, try to extract payment info from answer
-        return add_payment(bot, update, args=[reply])
+        await add_payment(update, context, args=[reply])
     elif yes_no(reply):
-        update.message.reply_text("ok dann gib jetzt dein geld ein")
+        await update.message.reply_text("ok dann gib jetzt dein geld ein")
         return CONVERSATION_ONGOING
     else:
-        update.message.reply_text("gut dann nicht :)\n"\
+        await update.message.reply_text("gut dann nicht :)\n"\
             "wenn du doch noch speichern willst, wie viel du gezahlt hast,"\
             " mach's einfach so:\n"\
             "/addpayment 12,34€ (mit oder ohne €)")
         return ConversationHandler.END
 
 
-def add_payment(bot, update, args=None):
+async def add_payment(update, context, args=None):
     """
     extract a number from the reply and save the data to zettel
     """
     if not args:
         # check if addpayment was called without arguments
         if "/addpayment" in update.message.text:
-            bot.send_message(chat_id=update.message.chat_id,
+            await context.bot.send_message(chat_id=update.message.chat_id,
                 text="Bitte benutze den Befehl so:\n /addpayment 34,99€ (mit oder ohne €)")
             return
         # meaning that this gets called during conversation
@@ -319,7 +308,7 @@ def add_payment(bot, update, args=None):
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
-        update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
+        await update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
             "Machs einfach so:\n /addpayment 34,99€ (mit oder ohne €)")
         return ConversationHandler.END
     else:
@@ -327,7 +316,7 @@ def add_payment(bot, update, args=None):
             # first and only match for float
             payment = float(matches[0].replace(",", "."))
         except ValueError:
-            update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
+            await update.message.reply_text("hab ich nicht verstanden... nochmal versuchen pls!\n"\
                 "Machs einfach so: /addpayment 34,99€ (mit oder ohne €)")
             return ConversationHandler.END
 
@@ -342,12 +331,12 @@ def add_payment(bot, update, args=None):
     zettel["payments"][userid]["paid"] += payment
 
     save_zettel(zettel, update.message.chat_id)
-    update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
+    await update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
         " bei {}€.".format(payment, username, round(zettel["payments"][userid]["paid"],2)))
     return ConversationHandler.END
 
 
-def payments(bot, update):
+async def payments(update, context):
     """
     list all payments
     """
@@ -355,7 +344,7 @@ def payments(bot, update):
 
     # if no information is given
     if not zettel["payments"]:
-        bot.send_message(chat_id=update.message.chat_id,
+        await context.bot.send_message(chat_id=update.message.chat_id,
             text="niemand hat irgendwas gezahlt.")
         return
 
@@ -381,7 +370,7 @@ def payments(bot, update):
         message += template.substitute(data)
 
 
-    bot.send_message(chat_id=update.message.chat_id, text=message,
+    await context.bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
 
 
@@ -401,7 +390,7 @@ def calculate_cashflow(payments):
     return greedy.minCashFlow(graph, user)
 
 
-def reset_payments(bot, update):
+async def reset_payments(update, context):
     zettel = read_zettel(update.message.chat_id)
 
     for userid in zettel["payments"]:
@@ -409,26 +398,26 @@ def reset_payments(bot, update):
 
     save_zettel(zettel, update.message.chat_id)
 
-    bot.send_message(chat_id=update.message.chat_id, text="ok, habs zurückgesetzt.")
+    await context.bot.send_message(chat_id=update.message.chat_id, text="ok, habs zurückgesetzt.")
 
 
-def cancel(bot, update):
-    update.message.reply_text("ok dieses gespräch scheint vorbei zu sein.")
+async def cancel(update, context):
+    await update.message.reply_text("ok dieses gespräch scheint vorbei zu sein.")
     return ConversationHandler.END
 
 
-def help(bot, update):
+async def help(update, context):
     help_templatefile = os.path.join(PATH, "templates", "help.txt")
     with open(help_templatefile) as f:
         message = f.read()
-    bot.send_message(chat_id=update.message.chat_id, text=message,
+    await context.bot.send_message(chat_id=update.message.chat_id, text=message,
         parse_mode=ParseMode.MARKDOWN)
 
 
 # to be fired on unknown commands
-def unknown(bot, update):
+async def unknown(update, context):
     message = "Den befehl kenn ich nicht! 😱\nnimm den /help befehl um mehr zu erfahren"
-    bot.send_message(chat_id=update.message.chat_id, text=message)
+    await context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
 def main():
@@ -438,8 +427,7 @@ def main():
                      level=logging.INFO)
     logger = logging.getLogger(__name__)
     # bot itself
-    updater = Updater(token=TOKEN)
-    dispatcher = updater.dispatcher
+    application = ApplicationBuilder().token(TOKEN).build()
 
     # putzplan shizzle
     # get next monday
@@ -448,7 +436,7 @@ def main():
     first = first.replace(hour=9, minute=0)
     second = onDay(datetime.now(), 4)
     second = second.replace(hour=15, minute=0)
-    job = updater.job_queue
+    job = application.job_queue
     job.run_repeating(putzplan.callback,
         interval=timedelta(weeks=1),
         first=first)
@@ -460,76 +448,75 @@ def main():
     def putz(bot, update):
         putzplan.p.show_plan(bot, update.message.chat_id)
     putz_handler = MyCommandHandler('putzplan', putz)
-    dispatcher.add_handler(putz_handler)
+    application.add_handler(putz_handler)
 
     def stop_and_restart():
-        updater.stop()
+        application.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
 
-    def restart(bot, update):
+    def restart(update, context):
         update.message.reply_text("Starte Bot neu ...")
         logger.info("Restart bot ...")
         Thread(target=stop_and_restart).start()
 
     start_handler = MyCommandHandler('start', start)
-    dispatcher.add_handler(start_handler)
+    application.add_handler(start_handler)
 
-    add_handler = MyCommandHandler('add', add, pass_args=True)
-    dispatcher.add_handler(add_handler)
-    remove_handler = MyCommandHandler('remove', remove, pass_args=True)
-    dispatcher.add_handler(remove_handler)
+    add_handler = MyCommandHandler('add', add, has_args=True)
+    application.add_handler(add_handler)
+    remove_handler = MyCommandHandler('remove', remove, has_args=True)
+    application.add_handler(remove_handler)
     list_handler = MyCommandHandler('list', list)
-    dispatcher.add_handler(list_handler)
-    addpayment_handler = MyCommandHandler('addpayment', add_payment, pass_args=True)
-    dispatcher.add_handler(addpayment_handler)
+    application.add_handler(list_handler)
+    addpayment_handler = MyCommandHandler('addpayment', add_payment, has_args=True)
+    application.add_handler(addpayment_handler)
     payments_handler = MyCommandHandler('payments', payments)
-    dispatcher.add_handler(payments_handler)
+    application.add_handler(payments_handler)
     resetpayments_handler = MyCommandHandler('resetpayments', reset_payments)
-    dispatcher.add_handler(resetpayments_handler)
+    application.add_handler(resetpayments_handler)
 
     resetlist_handler = ConversationHandler(
         # command that triggers the conversation
         entry_points = [MyCommandHandler('resetlist', resetlist)],
         # states of the conversation
         states = {
-            YESNOPROMPT: [MessageHandler(Filters.text, ask_for_payment)],
-            CONVERSATION_ONGOING: [MessageHandler(Filters.text, add_payment)]
+            YESNOPROMPT: [MessageHandler(filters.TEXT, ask_for_payment)],
+            CONVERSATION_ONGOING: [MessageHandler(filters.TEXT, add_payment)]
         },
         fallbacks=[MyCommandHandler('cancel', cancel)]
     )
-    dispatcher.add_handler(resetlist_handler)
+    application.add_handler(resetlist_handler)
 
     # restart the bot, but only allow me to do this
     restart_handler = MyCommandHandler('restart', restart,
-        filters=Filters.user(username='@davekch'))
-    dispatcher.add_handler(restart_handler)
+        filters=filters.Chat(username='@davekch'))
+    application.add_handler(restart_handler)
 
     help_handler = MyCommandHandler('help', help)
-    dispatcher.add_handler(help_handler)
+    application.add_handler(help_handler)
 
     # scheisse handler
     scheisse = ScheissFilter()
-    scheisse_handler = MessageHandler(Filters.text & scheisse, answer_shit)
-    dispatcher.add_handler(scheisse_handler)
+    scheisse_handler = MessageHandler(filters.TEXT & scheisse, answer_shit)
+    application.add_handler(scheisse_handler)
 
     # polt handler
     polt = PoltFilter()
-    polt_handler = MessageHandler(Filters.text & polt, answer_polt)
-    dispatcher.add_handler(polt_handler)
+    polt_handler = MessageHandler(filters.TEXT & polt, answer_polt)
+    application.add_handler(polt_handler)
 
     # pasta and pizza handlers
     pizza = PizzaFilter()
-    pizza_handler = MessageHandler(Filters.text & pizza, send_voice("pizza.ogg"))
-    dispatcher.add_handler(pizza_handler)
+    pizza_handler = MessageHandler(filters.TEXT & pizza, send_voice("pizza.ogg"))
+    application.add_handler(pizza_handler)
     pasta = PastaFilter()
-    pasta_handler = MessageHandler(Filters.text & pasta, send_voice("aldente.ogg"))
-    dispatcher.add_handler(pasta_handler)
+    pasta_handler = MessageHandler(filters.TEXT & pasta, send_voice("aldente.ogg"))
+    application.add_handler(pasta_handler)
 
-    unknown_handler = MessageHandler(Filters.command & ForMeFilter(), unknown)
-    dispatcher.add_handler(unknown_handler)
+    unknown_handler = MessageHandler(filters.COMMAND, unknown)
+    application.add_handler(unknown_handler)
 
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 
 if __name__=="__main__":
