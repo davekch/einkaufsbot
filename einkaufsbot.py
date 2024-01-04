@@ -445,8 +445,10 @@ def main():
         interval=timedelta(weeks=1),
         first=second
     )
-    def putz(bot, update):
-        putzplan.p.show_plan(bot, update.message.chat_id)
+
+    async def putz(update, context):
+        await putzplan.p.show_plan(context.bot, update.message.chat_id)
+
     putz_handler = MyCommandHandler('putzplan', putz)
     application.add_handler(putz_handler)
 
