@@ -290,10 +290,11 @@ async def ask_for_payment(update, context):
         return ConversationHandler.END
 
 
-async def add_payment(update, context, args=None):
+async def add_payment(update, context):
     """
     extract a number from the reply and save the data to zettel
     """
+    args = context.args
     if not args:
         # check if addpayment was called without arguments
         if "/addpayment" in update.message.text:
