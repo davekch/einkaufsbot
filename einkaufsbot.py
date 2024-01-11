@@ -4,14 +4,15 @@
 import os
 import sys
 from threading import Thread
-from typing import Any, List, Optional, Tuple, Union
+import logging
 
-from telegram import Update
+# setup logging info
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 PATH = os.path.dirname(os.path.realpath(__file__))
-TOKEN = open(os.path.join(PATH, "token.txt")).read().strip()
 
-import logging
 import json
 import random
 import re
@@ -25,6 +26,10 @@ from telegram.ext import ConversationHandler
 from telegram.ext import filters
 from telegram.ext.filters import BaseFilter, MessageFilter
 from telegram.constants import ParseMode
+
+
+def get_token():
+    return open(os.path.join(PATH, "token.txt")).read().strip()
 
 
 # conversation states
@@ -263,14 +268,13 @@ def yes_no(reply):
     # if not understood
     return None
 
-from telegram.ext import ContextTypes
 
 async def ask_for_payment(update, context):
     reply = update.message.text
     # first check if user wants to do this
     if yes_no(reply) is None:
         # nothing was understood, try to extract payment info from answer
-        await add_payment(update, context, args=[reply])
+        return await add_payment(update, context)
     elif yes_no(reply):
         await update.message.reply_text("ok dann gib jetzt dein geld ein")
         return CONVERSATION_ONGOING
@@ -288,16 +292,11 @@ async def add_payment(update, context):
     """
     args = context.args
     if not args:
-        # check if addpayment was called without arguments
-        if "/addpayment" in update.message.text:
-            await context.bot.send_message(chat_id=update.message.chat_id,
-                text="Bitte benutze den Befehl so:\n /addpayment 34,99€ (mit oder ohne €)")
-            return
         # meaning that this gets called during conversation
         reply = update.message.text
     else:
         # gets called by command
-        reply = args[0]
+        reply = " ".join(args)
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
@@ -413,15 +412,10 @@ async def unknown(update, context):
     await context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
-def main():
-
-    # setup logging info
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                     level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    # bot itself
-    application = ApplicationBuilder().token(TOKEN).build()
-
+def build_application(application: Application):
+    """
+    add all handlers, messagefilters and job queues to a bare application object
+    """
     def stop_and_restart():
         application.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
@@ -488,8 +482,8 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     application.add_handler(unknown_handler)
 
-    application.run_polling()
-
 
 if __name__=="__main__":
-    main()
+    application = ApplicationBuilder().token(get_token()).build()
+    build_application(application)
+    application.run_polling()
