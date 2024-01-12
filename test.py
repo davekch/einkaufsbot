@@ -12,20 +12,19 @@ import einkaufsbot
 
 chat_id = 223200812
 
+with open("secrets.yml") as f:
+    secrets = yaml.safe_load(f)
+
 def get_client() -> TelegramClient:
-    with open("test_app.yml") as f:
-        secrets = yaml.safe_load(f)
     return TelegramClient(
         "unittesting",
-        secrets["api_id"],
-        secrets["api_hash"]
+        secrets["test_api_id"],
+        secrets["test_api_hash"]
     )
 
 
 def get_testbot() -> Application:
-    with open("test_token.txt") as f:
-        token = f.read().strip()
-    app = ApplicationBuilder().token(token).build()
+    app = ApplicationBuilder().token(secrets["test_token"]).build()
     einkaufsbot.build_application(app)
     return app
 
