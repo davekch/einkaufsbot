@@ -1,5 +1,7 @@
 zettel/*
 token.txt
+secrets.yml
 __pycache__
 putzplan.json
 venv
+unittesting.session
