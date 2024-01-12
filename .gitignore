@@ -1,5 +1,6 @@
 zettel/*
 token.txt
+secrets.yml
 __pycache__
 venv
 unittesting.session

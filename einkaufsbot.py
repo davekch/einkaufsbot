@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 PATH = Path(os.path.realpath(__file__)).parent
 
 import json
+import yaml
 import random
 import re
 import shlex
@@ -30,7 +31,15 @@ from telegram.constants import ParseMode
 
 
 def get_token():
-    return open(PATH / "token.txt").read().strip()
+    tokenfile = PATH / "token.txt"
+    if tokenfile.exists():
+        with open(tokenfile) as f:
+            return f.read().strip()
+    secretsfile = PATH / "secrets.yml"
+    if secretsfile.exists():
+        with open(secretsfile) as f:
+            secrets = yaml.safe_load(f)
+            return secrets["token"]
 
 
 # conversation states
