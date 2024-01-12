@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+from pathlib import Path
 import sys
 from threading import Thread
 import logging
@@ -11,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PATH = os.path.dirname(os.path.realpath(__file__))
+PATH = Path(os.path.realpath(__file__)).parent
 
 import json
 import random
@@ -29,7 +30,7 @@ from telegram.constants import ParseMode
 
 
 def get_token():
-    return open(os.path.join(PATH, "token.txt")).read().strip()
+    return open(PATH / "token.txt").read().strip()
 
 
 # conversation states
@@ -63,7 +64,7 @@ class ScheissFilter(MessageFilter):
     # get the forbidden words
     def __init__(self):
         super().__init__()
-        badwords_file = os.path.join(PATH, "templates", "badwords.txt")
+        badwords_file = PATH / "templates" / "badwords.txt"
         with open(badwords_file) as f:
             self.scheisse = f.read().split()
 
@@ -115,12 +116,12 @@ async def answer_shit(update, context):
 
 async def answer_polt(update, context):
     erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
-    voicefile = os.path.join(PATH, "polt", random.choice(erwin)+".ogg")
+    voicefile = PATH / "polt" / (random.choice(erwin)+".ogg")
     await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
 
 
 def send_voice(voicename):
-    voicefile = os.path.join(PATH, "polt", voicename)
+    voicefile = PATH / "polt" / voicename
     async def _send_voice(update, context):
         await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
     return _send_voice
@@ -128,9 +129,9 @@ def send_voice(voicename):
 
 # function to read the zettel of a given id
 def read_zettel(id):
-    filename = os.path.join(PATH, "zettel", str(id)+".json")
+    filename = PATH / "zettel" / f"{id}.json"
     # read filecontents if already exists
-    if os.path.isfile(filename):
+    if filename.exists():
         with open(filename) as f:
             zettel = json.load(f)
     else:
@@ -140,7 +141,7 @@ def read_zettel(id):
 
 # function to save zettel of given id
 def save_zettel(zettel, id):
-    filename = os.path.join(PATH, "zettel", str(id)+".json")
+    filename = PATH / "zettel" / f"{id}.json"
     with open(filename, "w") as f:
         json.dump(zettel, f, sort_keys=True, indent=4)
 
@@ -354,7 +355,7 @@ async def payments(update, context):
         # calculate cash flow
         cashflow = calculate_cashflow(zettel["payments"])
         # format message via template
-        payments_templatefile = os.path.join(PATH, "templates", "payments.txt")
+        payments_templatefile = PATH / "templates" / "payments.txt"
         with open(payments_templatefile) as f:
             template = Template(f.read())
         # create json to fill template
@@ -399,7 +400,7 @@ async def cancel(update, context):
 
 
 async def help(update, context):
-    help_templatefile = os.path.join(PATH, "templates", "help.txt")
+    help_templatefile = PATH / "templates" / "help.txt"
     with open(help_templatefile) as f:
         message = f.read()
     await context.bot.send_message(chat_id=update.message.chat_id, text=message,
