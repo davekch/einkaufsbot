@@ -10,7 +10,6 @@ from telegram.ext import Application, ApplicationBuilder
 
 import einkaufsbot
 
-chat_id = 223200812
 
 with open("secrets.yml") as f:
     secrets = yaml.safe_load(f)
@@ -54,7 +53,7 @@ class TestEinkaufHeini(IsolatedAsyncioTestCase):
     async def test_list(self):
         async with self.client.conversation(self.testbot_username, timeout=5) as c:
             # first make sure that there is no zettel
-            zettel = Path("zettel") / f"{chat_id}.json"
+            zettel = Path("zettel") / f"{secrets['test_chat_id']}.json"
             if zettel.exists():
                 os.remove(str(zettel))
 
