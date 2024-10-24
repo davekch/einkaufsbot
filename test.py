@@ -40,8 +40,8 @@ class TestEinkaufHeini(IsolatedAsyncioTestCase):
         cls.client = get_client()
         await cls.client.connect()
         if not (await cls.client.is_user_authorized()):
-            await cls.client.send_code_request("")
-            await cls.client.sign_in("", input("code: "))
+            await cls.client.send_code_request(secrets["test_auth_mobile_number"])
+            await cls.client.sign_in(secrets["test_auth_mobile_number"], input("code: "))
         await cls.client.get_me()
 
     async def asyncTearDown(cls):
