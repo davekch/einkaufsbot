@@ -2,15 +2,22 @@
 # -*- coding: utf-8 -*-
 
 import os
+from pathlib import Path
 import sys
 from threading import Thread
 from datetime import timedelta
 from datetime import datetime
-PATH = os.path.dirname(os.path.realpath(__file__))
-TOKEN = open(os.path.join(PATH, "token.txt")).read().strip()
-
 import logging
+
+# setup logging info
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+PATH = Path(os.path.realpath(__file__)).parent
+
 import json
+import yaml
 import random
 import re
 import shlex
@@ -25,6 +32,18 @@ from telegram.ext.filters import BaseFilter, MessageFilter
 from telegram.constants import ParseMode
 
 import putzplan
+
+
+def get_token():
+    tokenfile = PATH / "token.txt"
+    if tokenfile.exists():
+        with open(tokenfile) as f:
+            return f.read().strip()
+    secretsfile = PATH / "secrets.yml"
+    if secretsfile.exists():
+        with open(secretsfile) as f:
+            secrets = yaml.safe_load(f)
+            return secrets["token"]
 
 
 # conversation states
@@ -66,7 +85,7 @@ class ScheissFilter(MessageFilter):
     # get the forbidden words
     def __init__(self):
         super().__init__()
-        badwords_file = os.path.join(PATH, "templates", "badwords.txt")
+        badwords_file = PATH / "templates" / "badwords.txt"
         with open(badwords_file) as f:
             self.scheisse = f.read().split()
 
@@ -118,12 +137,12 @@ async def answer_shit(update, context):
 
 async def answer_polt(update, context):
     erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
-    voicefile = os.path.join(PATH, "polt", random.choice(erwin)+".ogg")
+    voicefile = PATH / "polt" / (random.choice(erwin)+".ogg")
     await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
 
 
 def send_voice(voicename):
-    voicefile = os.path.join(PATH, "polt", voicename)
+    voicefile = PATH / "polt" / voicename
     async def _send_voice(update, context):
         await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
     return _send_voice
@@ -131,9 +150,9 @@ def send_voice(voicename):
 
 # function to read the zettel of a given id
 def read_zettel(id):
-    filename = os.path.join(PATH, "zettel", str(id)+".json")
+    filename = PATH / "zettel" / f"{id}.json"
     # read filecontents if already exists
-    if os.path.isfile(filename):
+    if filename.exists():
         with open(filename) as f:
             zettel = json.load(f)
     else:
@@ -143,7 +162,7 @@ def read_zettel(id):
 
 # function to save zettel of given id
 def save_zettel(zettel, id):
-    filename = os.path.join(PATH, "zettel", str(id)+".json")
+    filename = PATH / "zettel" / f"{id}.json"
     with open(filename, "w") as f:
         json.dump(zettel, f, sort_keys=True, indent=4)
 
@@ -271,14 +290,13 @@ def yes_no(reply):
     # if not understood
     return None
 
-from telegram.ext import ContextTypes
 
 async def ask_for_payment(update, context):
     reply = update.message.text
     # first check if user wants to do this
     if yes_no(reply) is None:
         # nothing was understood, try to extract payment info from answer
-        await add_payment(update, context, args=[reply])
+        return await add_payment(update, context)
     elif yes_no(reply):
         await update.message.reply_text("ok dann gib jetzt dein geld ein")
         return CONVERSATION_ONGOING
@@ -296,16 +314,11 @@ async def add_payment(update, context):
     """
     args = context.args
     if not args:
-        # check if addpayment was called without arguments
-        if "/addpayment" in update.message.text:
-            await context.bot.send_message(chat_id=update.message.chat_id,
-                text="Bitte benutze den Befehl so:\n /addpayment 34,99€ (mit oder ohne €)")
-            return
         # meaning that this gets called during conversation
         reply = update.message.text
     else:
         # gets called by command
-        reply = args[0]
+        reply = " ".join(args)
     # match a floating point number
     matches = re.findall(r"[-+]?\d*[\.,]\d+|[-+]?\d+", reply)
     if len(matches)!=1:
@@ -363,7 +376,7 @@ async def payments(update, context):
         # calculate cash flow
         cashflow = calculate_cashflow(zettel["payments"])
         # format message via template
-        payments_templatefile = os.path.join(PATH, "templates", "payments.txt")
+        payments_templatefile = PATH / "templates" / "payments.txt"
         with open(payments_templatefile) as f:
             template = Template(f.read())
         # create json to fill template
@@ -408,7 +421,7 @@ async def cancel(update, context):
 
 
 async def help(update, context):
-    help_templatefile = os.path.join(PATH, "templates", "help.txt")
+    help_templatefile = PATH / "templates" / "help.txt"
     with open(help_templatefile) as f:
         message = f.read()
     await context.bot.send_message(chat_id=update.message.chat_id, text=message,
@@ -421,15 +434,10 @@ async def unknown(update, context):
     await context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
-def main():
-
-    # setup logging info
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                     level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    # bot itself
-    application = ApplicationBuilder().token(TOKEN).build()
-
+def build_application(application: Application):
+    """
+    add all handlers, messagefilters and job queues to a bare application object
+    """
     # putzplan shizzle
     # get next monday
     onDay = lambda date, day: date + timedelta(days=(day-date.weekday()+7)%7)
@@ -519,8 +527,8 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     application.add_handler(unknown_handler)
 
-    application.run_polling()
-
 
 if __name__=="__main__":
-    main()
+    application = ApplicationBuilder().token(get_token()).build()
+    build_application(application)
+    application.run_polling()
