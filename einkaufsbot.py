@@ -6,15 +6,6 @@ from pathlib import Path
 import sys
 from threading import Thread
 import logging
-
-# setup logging info
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-PATH = Path(os.path.realpath(__file__)).parent
-
-import json
 import yaml
 import random
 import re
@@ -28,6 +19,19 @@ from telegram.ext import ConversationHandler
 from telegram.ext import filters
 from telegram.ext.filters import BaseFilter, MessageFilter
 from telegram.constants import ParseMode
+from typing import List, Tuple
+
+import db
+
+
+# setup logging info
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+PATH = Path(os.path.realpath(__file__)).parent
 
 
 def get_token():
@@ -136,25 +140,6 @@ def send_voice(voicename):
     return _send_voice
 
 
-# function to read the zettel of a given id
-def read_zettel(id):
-    filename = PATH / "zettel" / f"{id}.json"
-    # read filecontents if already exists
-    if filename.exists():
-        with open(filename) as f:
-            zettel = json.load(f)
-    else:
-        zettel = {"liste": [], "payments": {}}
-    return zettel
-
-
-# function to save zettel of given id
-def save_zettel(zettel, id):
-    filename = PATH / "zettel" / f"{id}.json"
-    with open(filename, "w") as f:
-        json.dump(zettel, f, sort_keys=True, indent=4)
-
-
 async def add(update, context):
     """
     add args to einkaufszettel
@@ -167,13 +152,13 @@ async def add(update, context):
         return
 
     # get the einkaufszettel
-    zettel = read_zettel(update.message.chat_id)
+    zettel = await db.get_groceries(update.message.chat_id)
 
     # check if items are already in list and add them/write message
     message = ""
     for item in args:
-        if item.upper() not in zettel["liste"]:
-            zettel["liste"].append(item.upper())
+        if item.upper() not in zettel:
+            zettel.append(item.upper())
         else:
             if message=="":
                 message += "{} steht schon auf der einkaufsliste.\n".format(item)
@@ -187,7 +172,7 @@ async def add(update, context):
         message += "hab den rest aufgeschrieben!"
 
     await context.bot.send_message(chat_id=update.message.chat_id, text=message)
-    save_zettel(zettel, update.message.chat_id)
+    await db.save_groceries(zettel, update.message.chat_id)
 
 
 async def remove(update, context):
@@ -201,13 +186,13 @@ async def remove(update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text="was soll von der einkaufsliste runter? Mach's so: \n/remove tomaten mozarella ...")
         return
 
-    zettel = read_zettel(update.message.chat_id)
+    zettel = await db.get_groceries(update.message.chat_id)
 
     # remove args from zettel
     message = ""
     for item in args:
         try:
-            zettel["liste"].remove(item.upper())
+            zettel.remove(item.upper())
         except ValueError:
             if message=="":
                 message += "{} steht eh nicht auf dem zettel!\n".format(item)
@@ -220,21 +205,21 @@ async def remove(update, context):
         message += "hab den rest runter von der liste."
 
     await context.bot.send_message(chat_id=update.message.chat_id, text=message)
-    save_zettel(zettel, update.message.chat_id)
+    await db.save_groceries(zettel, update.message.chat_id)
 
 
 async def list(update, context):
     """
     list all items in einkaufsliste
     """
-    zettel = read_zettel(update.message.chat_id)
+    zettel = await db.get_groceries(update.message.chat_id)
 
-    if len(zettel["liste"])==0:
+    if len(zettel)==0:
         await context.bot.send_message(chat_id=update.message.chat_id,
             text="hab keine einkaufsliste grad.")
     else:
         message = "*Die Einkaufsliste*\n"
-        for item in zettel["liste"]:
+        for item in zettel:
             # replace markdown special characters
             item = item.replace("*", "\\*").replace("_", "\\_")
             message += item.lower()+'\n'
@@ -244,16 +229,15 @@ async def list(update, context):
 
 async def resetlist(update, context):
     """
-    removes all items from zettel["liste"]
+    removes all items from zettel
     """
-    zettel = read_zettel(update.message.chat_id)
-    if len(zettel["liste"])==0:
+    zettel = await db.get_groceries(update.message.chat_id)
+    if len(zettel)==0:
         await context.bot.send_message(chat_id=update.message.chat_id,
             text="Die liste ist eh leer!")
         return ConversationHandler.END
 
-    zettel["liste"] = []
-    save_zettel(zettel, update.message.chat_id)
+    await db.save_groceries([], update.message.chat_id)
     await context.bot.send_message(chat_id=update.message.chat_id,
         text="ok, hab die einkaufsliste gelöscht. willst du gleich angeben wieviel du gezahlt hast (falls du zufällig grad einkaufen warst)?")
 
@@ -325,16 +309,14 @@ async def add_payment(update, context):
     # get current userinfo
     username = update.message.from_user.first_name
     userid = str(update.message.from_user.id)
-    # get zettel
-    zettel = read_zettel(update.message.chat_id)
-    # check if there is already data and create it if not
-    if userid not in zettel["payments"]:
-        zettel["payments"][userid] = {"name": username, "paid": 0.0}
-    zettel["payments"][userid]["paid"] += payment
+    # update this user's credit
+    payment_ct = round(payment * 100)
+    credit_ct = await db.add_to_credit(userid, username, update.message.chat_id, payment_ct)
 
-    save_zettel(zettel, update.message.chat_id)
-    await update.message.reply_text("ok, hab {}€ für {} aufgeschrieben. Du bist jetzt"\
-        " bei {}€.".format(payment, username, round(zettel["payments"][userid]["paid"],2)))
+    await update.message.reply_text(
+        f"ok, hab {payment}€ für {username} aufgeschrieben. "
+        f"Du bist jetzt bei {round(credit_ct/100, 2)}€."
+    )
     return ConversationHandler.END
 
 
@@ -342,33 +324,38 @@ async def payments(update, context):
     """
     list all payments
     """
-    zettel = read_zettel(update.message.chat_id)
+    credits = await db.get_credits(update.message.chat_id)
 
     # if no information is given
-    if not zettel["payments"]:
+    if not credits:
         await context.bot.send_message(chat_id=update.message.chat_id,
             text="niemand hat irgendwas gezahlt.")
         return
 
     message = "*Die Ausgaben*\n"
     gesamt = 0.
-    N = 0  # how many users
-    for userid in zettel["payments"]:
-        user = zettel["payments"][userid]
-        message += "{}: {}€\n".format(user["name"], round(user["paid"],2))
-        gesamt += user["paid"]
-        N += 1
+    for username, credit in credits:
+        message += f"{username}: {round(credit/100, 2)}€\n"
+        gesamt += credit
 
     # do the rest only in groups
     if update.message.chat.type=="group":
         # calculate cash flow
-        cashflow = calculate_cashflow(zettel["payments"])
+        cashflow = calculate_cashflow(credits)
+        # construct message
+        cashflow_msg = ""
+        for user_debit, user_credit, amount in cashflow:
+            cashflow_msg += f"{user_debit} zahlt {user_credit} {round(amount/100, 2)}€"
         # format message via template
         payments_templatefile = PATH / "templates" / "payments.txt"
         with open(payments_templatefile) as f:
             template = Template(f.read())
         # create json to fill template
-        data = {"gesamt":round(gesamt,2), "jeder": round(gesamt/float(N),2), "cashflow":"\n".join(cashflow) }
+        data = {
+            "gesamt": round(gesamt/100, 2),
+            "jeder": round(gesamt/len(credits)/100, 2),
+            "cashflow": cashflow_msg,
+        }
         message += template.substitute(data)
 
 
@@ -376,30 +363,16 @@ async def payments(update, context):
         parse_mode=ParseMode.MARKDOWN)
 
 
-def calculate_cashflow(payments):
-    # create lists that are meaningful to functions from greedy
-    N = len(payments)
-    gezahlt = [0 for i in range(N)]
-    user = {}
-    i=0
-    for userid in payments:
-        gezahlt[i] = payments[userid]["paid"]
-        user[i] = payments[userid]["name"]
-        i+=1
-
+def calculate_cashflow(credits: List[Tuple[str, int]]):
+    gezahlt = [c for _, c in credits]
+    user = {i: user for i, (user, _) in enumerate(credits)}
     # calculate schulden-graph
-    graph = greedy.calc_graph(N, gezahlt)
+    graph = greedy.calc_graph(len(gezahlt), gezahlt)
     return greedy.minCashFlow(graph, user)
 
 
 async def reset_payments(update, context):
-    zettel = read_zettel(update.message.chat_id)
-
-    for userid in zettel["payments"]:
-        zettel["payments"][userid]["paid"] = 0.0
-
-    save_zettel(zettel, update.message.chat_id)
-
+    await db.reset_payments(update.message.chat_id)
     await context.bot.send_message(chat_id=update.message.chat_id, text="ok, habs zurückgesetzt.")
 
 
@@ -494,6 +467,7 @@ def build_application(application: Application):
 
 
 if __name__=="__main__":
+    db.init_db()
     application = ApplicationBuilder().token(get_token()).build()
     build_application(application)
     application.run_polling()

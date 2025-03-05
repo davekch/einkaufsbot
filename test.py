@@ -1,14 +1,14 @@
-from unittest.result import TestResult
 import yaml
 import os
-from pathlib import Path
 from telethon.sync import TelegramClient
 from unittest import IsolatedAsyncioTestCase
 import unittest
 import asyncio
 from telegram.ext import Application, ApplicationBuilder
 
+os.environ["EINKAUFBOT_TEST"] = "1"
 import einkaufsbot
+import db
 
 
 with open("secrets.yml") as f:
@@ -30,6 +30,7 @@ def get_testbot() -> Application:
 
 class TestEinkaufHeini(IsolatedAsyncioTestCase):
     async def asyncSetUp(cls):
+        db.init_db()
         # start the test bot
         cls.testbot = get_testbot()
         cls.testbot_username = "@blueinkaufbot_test_bot"
@@ -52,10 +53,8 @@ class TestEinkaufHeini(IsolatedAsyncioTestCase):
     
     async def test_list(self):
         async with self.client.conversation(self.testbot_username, timeout=5) as c:
-            # first make sure that there is no zettel
-            zettel = Path("zettel") / f"{secrets['test_chat_id']}.json"
-            if zettel.exists():
-                os.remove(str(zettel))
+            # make sure the list is empty
+            await db.save_groceries([], secrets["test_chat_id"])
 
             await c.send_message("/list")
             response = await c.get_response()
@@ -229,4 +228,7 @@ class TestEinkaufHeini(IsolatedAsyncioTestCase):
 
 
 if __name__ == "__main__":
+    if os.path.exists(db.DATABASE_PATH):
+        os.remove(db.DATABASE_PATH)
+
     unittest.main()
