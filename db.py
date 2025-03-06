@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     AsyncSession,
 )
+import itertools
 from typing import List, Callable
 import os
 import logging
@@ -52,8 +53,8 @@ class UserGroup(Base):
     """
     __tablename__ = "user_group"
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.telegram_id"), primary_key=True)
-    group_id: Mapped[int] = mapped_column(ForeignKey("group.chat_id"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.telegram_id", ondelete="CASCADE"), primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("group.chat_id", ondelete="CASCADE"), primary_key=True)
     user: Mapped["User"] = relationship("User", back_populates="user_groups")
     group: Mapped["Group"] = relationship("Group", back_populates="group_users")
     credit: Mapped[int] = mapped_column(default=0)   # what the user paid in this group in cents
@@ -64,16 +65,70 @@ class User(Base):
 
     telegram_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
-    user_groups: Mapped[List["UserGroup"]] = relationship("UserGroup", back_populates="user")
+    user_groups: Mapped[List["UserGroup"]] = relationship(
+        "UserGroup",
+        back_populates="user",
+        cascade="all, delete",
+    )
 
 
 class Group(Base):
     __tablename__ = "group"
 
     chat_id: Mapped[int] = mapped_column(primary_key=True)
-    group_users: Mapped[List["UserGroup"]] = relationship("UserGroup", back_populates="group")
+    group_users: Mapped[List["UserGroup"]] = relationship(
+        "UserGroup",
+        back_populates="group",
+        cascade="all, delete",
+    )
     grocery_list: Mapped[List[str]] = mapped_column(JSON, default=list)
+    putzplan: Mapped["Putzplan"] = relationship(
+        "Putzplan",
+        uselist=False,  # one-to-one
+        cascade="all, delete",
+    )
 
+
+class Putzplan(Base):
+    __tablename__ = "putzplan"
+
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("group.chat_id", ondelete="CASCADE"),
+        primary_key=True
+    )
+    group: Mapped["Group"] = relationship("Group", back_populates="putzplan")
+    tasks: Mapped[List[str]] = mapped_column(JSON)
+    index: Mapped[int] = mapped_column(default=0)
+
+    @classmethod
+    async def aall(cls) -> List["Putzplan"]:
+        async with ASessionLocal() as session:
+            return (await session.execute(select(cls))).scalars().all()
+        
+    async def aget_assigned_tasks(self, session: AsyncSession) -> List[tuple[str, str]]:
+        """
+        returns a list of (username, task)
+        """
+        group = (
+            await session.execute(
+                select(Group).options(
+                    selectinload(Group.group_users).selectinload(UserGroup.user)
+                ).filter(Group.chat_id==self.group_id)
+            )
+        ).scalar_one()
+        users = sorted([usergroup.user.name for usergroup in group.group_users])
+        # map users to task with an offset of self.index
+        N = min(len(users), len(self.tasks))
+        return [
+            (users[i], self.tasks[(i + self.index) % N])
+            for i in range(N)
+        ]
+
+    async def arotate(self):
+        async with ASessionLocal() as session:
+            self.index = (self.index + 1) % len(self.tasks)
+            session.add(self)
+            await session.commit()
 
 
 async def get_groceries(chat_id: int) -> list[str]:
@@ -158,3 +213,11 @@ async def reset_payments(chat_id: int):
             usergroup.credit = 0
             session.add(usergroup)
         await session.commit()
+
+
+async def get_assigned_tasks(chat_id: int) -> List[tuple[str, str]]:
+    async with ASessionLocal() as session:
+        putzplan = await session.get(Putzplan, chat_id)
+        if not putzplan:
+            return []
+        return await putzplan.aget_assigned_tasks(session)

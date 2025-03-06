@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import os
 from pathlib import Path
 import sys
@@ -10,6 +7,7 @@ import yaml
 import random
 import re
 import shlex
+from datetime import datetime, timedelta
 from string import Template
 import greedy
 from telegram.ext import Application, ApplicationBuilder
@@ -376,6 +374,22 @@ async def reset_payments(update, context):
     await context.bot.send_message(chat_id=update.message.chat_id, text="ok, habs zurückgesetzt.")
 
 
+async def _show_putzplan(chat_id, context):
+    assinged_tasks = await db.get_assigned_tasks(chat_id)
+    if not assinged_tasks:
+        # not a fully supported feature; ignore
+        return
+    text = "*Der Putzplan*\n"
+    for user, task in assinged_tasks:
+        text += f"{user}: {task}\n"
+    await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.MARKDOWN)
+
+
+async def show_putzplan(update, context):
+    # _show_putzplan is needed for reminder messages
+    await _show_putzplan(update.message.chat_id, context)
+
+
 async def cancel(update, context):
     await update.message.reply_text("ok dieses gespräch scheint vorbei zu sein.")
     return ConversationHandler.END
@@ -395,10 +409,55 @@ async def unknown(update, context):
     await context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
+async def putzplan_callback_rotate_and_show(context):
+    """
+    rotate all putzplans and send them to their groups    
+    """
+    putzplans = await db.Putzplan.aall()
+    for putzplan in putzplans:
+        await putzplan.arotate()
+        await _show_putzplan(putzplan.chat_id, context)
+
+
+async def putzplan_callback_show(context):
+    """
+    send putzplan reminders to all groups 
+    """
+    putzplans = await db.Putzplan.aall()
+    for putzplan in putzplans:
+        await _show_putzplan(putzplan.chat_id, context)
+
+
+def next_weekday(weekday: int) -> datetime:
+    """
+    returns a datetime of the next specified weekday from now
+    """
+    today = datetime.now()
+    return today + timedelta(days=(weekday - today.weekday() + 7) % 7)
+
+
 def build_application(application: Application):
     """
     add all handlers, messagefilters and job queues to a bare application object
     """
+    # putzplan schedule
+    first_monday_reminder = next_weekday(0).replace(hour=9, minute=0)
+    first_friday_reminder = next_weekday(4).replace(hour=15, minute=0)
+    queue = application.job_queue
+    queue.run_repeating(
+        putzplan_callback_rotate_and_show,
+        interval=timedelta(weeks=1),
+        first=first_monday_reminder,
+    )
+    queue.run_repeating(
+        putzplan_callback_show,
+        interval=timedelta(weeks=1),
+        first=first_friday_reminder,
+    )
+
+    putzplan_handler = MyCommandHandler('putzplan', show_putzplan)
+    application.add_handler(putzplan_handler)
+
     def stop_and_restart():
         application.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
