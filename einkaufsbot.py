@@ -337,13 +337,13 @@ async def payments(update, context):
         gesamt += credit
 
     # do the rest only in groups
-    if update.message.chat.type=="group":
+    if update.message.chat.type=="group" or os.environ.get("EINKAUFBOT_TEST"):
         # calculate cash flow
         cashflow = calculate_cashflow(credits)
         # construct message
         cashflow_msg = ""
         for user_debit, user_credit, amount in cashflow:
-            cashflow_msg += f"{user_debit} zahlt {user_credit} {round(amount/100, 2)}€"
+            cashflow_msg += f"{user_debit} zahlt {user_credit} {round(amount/100, 2)}€\n"
         # format message via template
         payments_templatefile = PATH / "templates" / "payments.txt"
         with open(payments_templatefile) as f:
