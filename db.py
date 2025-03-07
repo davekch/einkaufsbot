@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     AsyncSession,
 )
-import itertools
+from pathlib import Path
 from typing import List, Callable
 import os
 import logging
@@ -25,11 +25,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+PROJECT_DIR = Path(__file__).parent
 
 if os.environ.get("EINKAUFBOT_TEST"):
-    DATABASE_PATH = "db-test.sqlite"
+    DATABASE_PATH = str(PROJECT_DIR / "db-test.sqlite")
 else:
-    DATABASE_PATH = "db.sqlite"
+    DATABASE_PATH = str(PROJECT_DIR / "db.sqlite")
 logging.info(f"{DATABASE_PATH=}")
 
 engine = create_engine("sqlite:///" + DATABASE_PATH)
