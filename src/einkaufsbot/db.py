@@ -19,18 +19,9 @@ import os
 import logging
 
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
 logger = logging.getLogger(__name__)
 
-PROJECT_DIR = Path(__file__).parent
-
-if os.environ.get("EINKAUFBOT_TEST"):
-    DATABASE_PATH = str(PROJECT_DIR / "db-test.sqlite")
-else:
-    DATABASE_PATH = str(PROJECT_DIR / "db.sqlite")
+DATABASE_PATH = os.environ.get("EINKAUFSBOT_DB_PATH", str(Path().absolute() / "db.sqlite"))
 logging.info(f"{DATABASE_PATH=}")
 
 engine = create_engine("sqlite:///" + DATABASE_PATH)
@@ -181,7 +172,7 @@ async def add_to_credit(user_id: int, user_name: str, chat_id: int, add_credit: 
 
         group = await session.get(Group, chat_id)
         if not group:
-            group = Group(chat_id)
+            group = Group(chat_id=chat_id)
             session.add(group)
 
         usergroup = await session.get(UserGroup, (user_id, chat_id))

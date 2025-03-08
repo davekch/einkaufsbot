@@ -15,3 +15,13 @@ dependencies = [
 dev = [
     "telethon>=1.39.0",
 ]
+
+[project.scripts]
+einkaufsbot = "einkaufsbot:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+include = ["einkaufsbot/resources/**"]

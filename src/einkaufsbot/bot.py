@@ -3,13 +3,12 @@ from pathlib import Path
 import sys
 from threading import Thread
 import logging
-import yaml
+import importlib.resources as pkg_resources
 import random
 import re
 import shlex
 from datetime import datetime, timedelta
 from string import Template
-import greedy
 from telegram.ext import Application, ApplicationBuilder
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
@@ -19,29 +18,12 @@ from telegram.ext.filters import BaseFilter, MessageFilter
 from telegram.constants import ParseMode
 from typing import List, Tuple
 
-import db
+from . import db
+from . import greedy
 
 
-# setup logging info
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
 logger = logging.getLogger(__name__)
-
-PATH = Path(os.path.realpath(__file__)).parent
-
-
-def get_token():
-    tokenfile = PATH / "token.txt"
-    if tokenfile.exists():
-        with open(tokenfile) as f:
-            return f.read().strip()
-    secretsfile = PATH / "secrets.yml"
-    if secretsfile.exists():
-        with open(secretsfile) as f:
-            secrets = yaml.safe_load(f)
-            return secrets["token"]
+RESOURCE_PATH = pkg_resources.files("einkaufsbot").joinpath("resources")
 
 
 # conversation states
@@ -75,7 +57,7 @@ class ScheissFilter(MessageFilter):
     # get the forbidden words
     def __init__(self):
         super().__init__()
-        badwords_file = PATH / "templates" / "badwords.txt"
+        badwords_file = RESOURCE_PATH / "templates" / "badwords.txt"
         with open(badwords_file) as f:
             self.scheisse = f.read().split()
 
@@ -127,12 +109,12 @@ async def answer_shit(update, context):
 
 async def answer_polt(update, context):
     erwin = ["urlaub", "anrufen", "haha", "oisodannokay", "servus", "machen"]
-    voicefile = PATH / "polt" / (random.choice(erwin)+".ogg")
+    voicefile = RESOURCE_PATH / "polt" / (random.choice(erwin)+".ogg")
     await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
 
 
 def send_voice(voicename):
-    voicefile = PATH / "polt" / voicename
+    voicefile = RESOURCE_PATH / "polt" / voicename
     async def _send_voice(update, context):
         await context.bot.send_voice(chat_id=update.message.chat_id, voice=open(voicefile, "rb"))
     return _send_voice
@@ -345,7 +327,7 @@ async def payments(update, context):
         for user_debit, user_credit, amount in cashflow:
             cashflow_msg += f"{user_debit} zahlt {user_credit} {round(amount/100, 2)}€\n"
         # format message via template
-        payments_templatefile = PATH / "templates" / "payments.txt"
+        payments_templatefile = RESOURCE_PATH / "templates" / "payments.txt"
         with open(payments_templatefile) as f:
             template = Template(f.read())
         # create json to fill template
@@ -396,7 +378,7 @@ async def cancel(update, context):
 
 
 async def help(update, context):
-    help_templatefile = PATH / "templates" / "help.txt"
+    help_templatefile = RESOURCE_PATH / "templates" / "help.txt"
     with open(help_templatefile) as f:
         message = f.read()
     await context.bot.send_message(chat_id=update.message.chat_id, text=message,
@@ -525,8 +507,8 @@ def build_application(application: Application):
     application.add_handler(unknown_handler)
 
 
-if __name__=="__main__":
+def main(token: str):
     db.init_db()
-    application = ApplicationBuilder().token(get_token()).build()
+    application = ApplicationBuilder().token(token).build()
     build_application(application)
     application.run_polling()
