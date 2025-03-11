@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import sys
 from threading import Thread
 import logging
@@ -14,7 +13,7 @@ from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
 from telegram.ext import ConversationHandler
 from telegram.ext import filters
-from telegram.ext.filters import BaseFilter, MessageFilter
+from telegram.ext.filters import MessageFilter
 from telegram.constants import ParseMode
 from typing import List, Tuple
 

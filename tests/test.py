@@ -6,9 +6,7 @@ import unittest
 import asyncio
 from telegram.ext import Application, ApplicationBuilder
 
-os.environ["EINKAUFBOT_TEST"] = "1"
-import einkaufsbot
-import db
+from einkaufsbot import bot, db
 
 
 with open("secrets.yml") as f:
@@ -24,7 +22,7 @@ def get_client() -> TelegramClient:
 
 def get_testbot() -> Application:
     app = ApplicationBuilder().token(secrets["test_token"]).build()
-    einkaufsbot.build_application(app)
+    bot.build_application(app)
     return app
 
 

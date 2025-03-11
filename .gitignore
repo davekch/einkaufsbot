@@ -1,5 +1,5 @@
 zettel/*
-token.txt
+*token*.txt
 secrets.yml
 __pycache__
 .venv

@@ -4,7 +4,7 @@ import os
 import logging
 
 
-def main():# setup logging info
+def main():
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
