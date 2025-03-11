@@ -4,10 +4,7 @@ import os
 
 PROJECT_DIR = Path(__file__).absolute().parent.parent.parent
 
-import sys
-sys.path.insert(0, str(PROJECT_DIR))
-
-import db
+from einkaufsbot import db
 
 
 def migrate_zettel(path: str | Path):

@@ -13,8 +13,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     AsyncSession,
 )
+from sqlalchemy.sql import func
 from pathlib import Path
 from typing import List, Callable
+from datetime import datetime
 import os
 import logging
 
@@ -68,6 +70,8 @@ class Group(Base):
     __tablename__ = "group"
 
     chat_id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    last_modified: Mapped[datetime] = mapped_column(default=func.now(), onupdate=func.now())
     group_users: Mapped[List["UserGroup"]] = relationship(
         "UserGroup",
         back_populates="group",
