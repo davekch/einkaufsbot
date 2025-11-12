@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 import json
 import os
@@ -13,7 +14,12 @@ def migrate_zettel(path: str | Path):
     with open(path) as f:
         zettel_data = json.load(f)
     with db.SessionLocal() as session:
-        group = db.Group(chat_id=chat_id, grocery_list=zettel_data["liste"])
+        group = db.Group(
+            created_at=datetime.fromtimestamp(os.stat(path).st_ctime),
+            last_modified=datetime.fromtimestamp(os.stat(path).st_mtime),
+            chat_id=chat_id,
+            grocery_list=zettel_data["liste"]
+        )
         session.add(group)
         for user_id, data in zettel_data["payments"].items():
             user = session.get(db.User, user_id)
